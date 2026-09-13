@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { BrewView } from "./views/BrewView";
 import { ShotsView } from "./views/ShotsView";
 import { SettingsView } from "./views/SettingsView";
+import { ProfilesView } from "./views/ProfilesView";
 import type { MachineState } from "./api/types";
 
 const TABS = ["Brew", "Shots", "Beans", "Profiles", "Settings"] as const;
@@ -70,11 +71,14 @@ export default function App() {
           snapshot={snapshot}
           workflow={workflow}
           weight={scale.weight}
+          weightFlow={scale.weightFlow}
           elapsed={elapsed}
           trace={trace}
         />
       ) : tab === "Shots" ? (
         <ShotsView />
+      ) : tab === "Profiles" ? (
+        <ProfilesView />
       ) : tab === "Settings" ? (
         <SettingsView />
       ) : (

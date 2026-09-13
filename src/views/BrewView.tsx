@@ -94,11 +94,12 @@ interface BrewViewProps {
   snapshot: MachineSnapshot;
   workflow: Workflow | null | undefined;
   weight: number | null;
+  weightFlow: number | null;
   elapsed: number;
   trace: TracePoint[];
 }
 
-export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewViewProps) {
+export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trace }: BrewViewProps) {
   const ctx = workflow?.context;
   const { data: batch } = useBeanBatch(ctx?.beanBatchId);
   const roast = batch?.roastDate ? daysAgo(batch.roastDate) : null;
@@ -144,17 +145,14 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
             value={weight === null ? "—" : weight.toFixed(1)}
             color="hsl(var(--ch-weight))"
           />
-          <span className="read__spacer" />
-          <Read
-            minor
-            label="Pressure"
-            value={snapshot.pressure.toFixed(1)}
-            color="hsl(var(--ch-pressure))"
-          />
-          <Read minor label="Flow" value={snapshot.flow.toFixed(1)} color="hsl(var(--ch-flow))" />
         </div>
 
-        <ShotChart trace={trace} />
+        <ShotChart
+          trace={trace}
+          pressure={snapshot.pressure}
+          flow={snapshot.flow}
+          weightFlow={weightFlow}
+        />
       </div>
 
       <div className="rail">
