@@ -2,7 +2,9 @@ import { restUrl } from "../api/gateway";
 import { ShotChart } from "../components/ShotChart";
 import { useBeanBatch, useGrinder, useSetGrindSetting, type Workflow } from "../api/useWorkflow";
 import type { TracePoint } from "../api/useShotTrace";
-import type { MachineSnapshot, MachineState, MachineSubstate } from "../api/types";
+import { STATE_LABEL, WORKING, type MachineSnapshot, type MachineState, type MachineSubstate } from "../api/types";
+import { useMachineSettings } from "../api/useDecaidSettings";
+import { useCountdown } from "../api/useCountdown";
 
 const PHASE: Partial<Record<MachineSubstate, string>> = {
   preparingForShot: "Preparing",
@@ -22,6 +24,8 @@ const MODES: { label: string; state: MachineState }[] = [
   { label: "Steam", state: "steam" },
   { label: "Water", state: "hotWater" },
   { label: "Flush", state: "flush" },
+  // Sleep is a machine state like any other, so it belongs with its siblings.
+  { label: "Sleep", state: "sleeping" },
 ];
 
 function daysAgo(iso: string) {
@@ -83,15 +87,24 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
   const { data: batch } = useBeanBatch(ctx?.beanBatchId);
   const roast = batch?.roastDate ? daysAgo(batch.roastDate) : null;
   const busy = snapshot.state.state !== "idle";
+  const { data: machine } = useMachineSettings();
+  const flushing = snapshot.state.state === "flush";
 
   const run = (mode: MachineState) =>
     void fetch(restUrl(`/machine/state/${mode}`), { method: "PUT" });
+
+  const flushLeft = useCountdown(flushing, machine?.flushTimeout ?? 0, () => run("idle"));
 
   return (
     <div className="body">
       <div className="main">
         <div className="ident">
           <div className="ident__line">
+            <span
+              className={`state ${WORKING.has(snapshot.state.state) ? "state--busy" : ""}`}
+            >
+              {STATE_LABEL[snapshot.state.state]}
+            </span>
             <h1 className="ident__name">{ctx?.coffeeName ?? "No bean selected"}</h1>
             {[
               ctx?.coffeeRoaster,
@@ -142,7 +155,13 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
               onClick={() => (on ? run("idle") : run(mode.state))}
               disabled={busy && !on}
             >
-              {on ? "Stop" : mode.label}
+              {on && mode.state === "flush" && flushLeft > 0 ? (
+                <span className="mode__count">{Math.ceil(flushLeft)}</span>
+              ) : on ? (
+                "Stop"
+              ) : (
+                mode.label
+              )}
             </button>
           );
         })}

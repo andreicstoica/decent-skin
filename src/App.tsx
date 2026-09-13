@@ -18,29 +18,7 @@ type Tab = (typeof TABS)[number];
 
 const RESTING: ReadonlySet<MachineState> = new Set(["sleeping", "schedIdle"]);
 
-const STATE_LABEL: Record<MachineState, string> = {
-  booting: "Starting",
-  busy: "Busy",
-  idle: "Ready",
-  schedIdle: "Standby",
-  sleeping: "Asleep",
-  heating: "Heating",
-  preheating: "Preheating",
-  espresso: "Espresso",
-  hotWater: "Hot water",
-  flush: "Flush",
-  steam: "Steam",
-  steamRinse: "Steam rinse",
-  skipStep: "Skipping",
-  cleaning: "Cleaning",
-};
 
-const WORKING: ReadonlySet<MachineState> = new Set([
-  "heating",
-  "preheating",
-  "booting",
-  "busy",
-]);
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("Brew");
@@ -68,26 +46,6 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="head">
-        <span className={`state ${state && WORKING.has(state) ? "state--busy" : ""}`}>
-          {state ? STATE_LABEL[state] : "No machine"}
-        </span>
-        <div className="alerts">
-          {socket !== "open" && <span className="alert alert--urgent">Gateway offline</span>}
-          {water?.status === "refill" && <span className="alert alert--urgent">Refill water</span>}
-          {water?.status === "low" && <span className="alert">Water low</span>}
-          {scale.connected && scale.battery !== null && scale.battery < 25 && (
-            <span className="alert">Scale {scale.battery}%</span>
-          )}
-          <button
-            className="btn btn--quiet"
-            style={{ minHeight: 30, padding: "0 14px" }}
-            onClick={() => setMachine(resting ? "idle" : "sleeping")}
-          >
-            {resting ? "Wake" : "Sleep"}
-          </button>
-        </div>
-      </header>
 
       {!snapshot ? (
         <div className="panel">
@@ -134,6 +92,15 @@ export default function App() {
             {t}
           </button>
         ))}
+        <span className="tabs__spacer" />
+        <div className="alerts">
+          {socket !== "open" && <span className="alert alert--urgent">Gateway offline</span>}
+          {water?.status === "refill" && <span className="alert alert--urgent">Refill water</span>}
+          {water?.status === "low" && <span className="alert">Water low</span>}
+          {scale.connected && scale.battery !== null && scale.battery < 25 && (
+            <span className="alert">Scale {scale.battery}%</span>
+          )}
+        </div>
       </nav>
     </div>
   );

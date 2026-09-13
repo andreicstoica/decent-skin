@@ -28,7 +28,9 @@
 
   /* Key light from above. Information surfaces stay flat; only controls are
      machined, so a raised face reads as "this is a thing you can press". */
-  --face: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0.035));
+  --face:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 10px),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0) 10px);
   --raise:
     inset 0 1px 0 rgba(255, 255, 255, 0.75),
     inset 0 -1px 0 rgba(0, 0, 0, 0.05),
@@ -56,7 +58,9 @@
     --ch-flow: 213 88% 62%;
     --ch-weight: 44 95% 56%;
     --ch-target: 30 6% 38%;
-    --face: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.16));
+    --face:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 10px),
+      linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 10px);
     --raise:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       inset 0 -1px 0 rgba(0, 0, 0, 0.3),
@@ -80,7 +84,9 @@
   --ch-flow: 213 88% 62%;
   --ch-weight: 44 95% 56%;
   --ch-target: 30 6% 38%;
-  --face: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.16));
+  --face:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 10px),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 10px);
   --raise:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3),
@@ -125,18 +131,19 @@ body {
 
 .app { height: 100%; display: flex; flex-direction: column; }
 
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px var(--gutter);
-  border-bottom: var(--rule-w) solid hsl(var(--rule));
-  gap: 16px;
+.state {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  flex: none;
+  padding-right: 16px;
+  margin-right: 4px;
+  border-right: var(--rule-w) solid hsl(var(--rule));
 }
-.state { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
 .state--busy { color: hsl(var(--accent)); }
 
-.alerts { display: flex; gap: 8px; align-items: center; }
+.alerts { display: flex; gap: 8px; align-items: center; padding-right: var(--gutter); }
 /* Monochrome by rule: colour on this screen means a data channel or an engaged
    control, never an alert. Urgency is carried by the word and the inversion. */
 .alert {
@@ -172,6 +179,7 @@ body {
   border-bottom: var(--rule-w) solid hsl(var(--rule));
 }
 .ident__line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.mode__count { font-size: 24px; font-variant-numeric: tabular-nums; }
 .ident__name { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
 .ident__sep { color: hsl(var(--rule)); }
 .ident__meta { font-size: 12px; color: hsl(var(--muted)); }
@@ -212,7 +220,7 @@ body {
 
 /* ---- mode rail: hard blocks, active one filled ---- */
 
-.rail { width: 132px; flex: none; display: flex; flex-direction: column; border-left: var(--rule-w) solid hsl(var(--rule)); }
+.rail { width: 136px; flex: none; display: flex; flex-direction: column; border-left: var(--rule-w) solid hsl(var(--rule)); }
 .mode {
   flex: 1;
   font: inherit;
@@ -243,7 +251,8 @@ body {
 
 /* ---- tabs ---- */
 
-.tabs { display: flex; border-top: var(--rule-w) solid hsl(var(--rule)); }
+.tabs { display: flex; align-items: center; border-top: var(--rule-w) solid hsl(var(--rule)); }
+.tabs__spacer { flex: 1; }
 .tab {
   font: inherit;
   font-size: 11px;

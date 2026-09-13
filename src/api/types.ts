@@ -40,3 +40,28 @@ export const EXTRACTING: ReadonlySet<MachineSubstate> = new Set([
   "preinfusion",
   "pouring",
 ]);
+
+export const STATE_LABEL: Record<MachineState, string> = {
+  booting: "Starting",
+  busy: "Busy",
+  idle: "Ready",
+  schedIdle: "Standby",
+  sleeping: "Asleep",
+  heating: "Heating",
+  preheating: "Preheating",
+  espresso: "Espresso",
+  hotWater: "Hot water",
+  flush: "Flush",
+  steam: "Steam",
+  steamRinse: "Steam rinse",
+  skipStep: "Skipping",
+  cleaning: "Cleaning",
+};
+
+/** States where the machine is working toward readiness rather than waiting. */
+export const WORKING: ReadonlySet<MachineState> = new Set([
+  "heating",
+  "preheating",
+  "booting",
+  "busy",
+]);

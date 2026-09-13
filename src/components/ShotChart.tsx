@@ -30,6 +30,15 @@ function useElementSize<T extends HTMLElement>() {
   return [ref, size] as const;
 }
 
+function ticks(span: number) {
+  const raw = span / 6;
+  const decade = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].find((m) => m * decade >= raw)! * decade;
+  const out: number[] = [];
+  for (let t = 0; t <= span + 1e-9; t += step) out.push(Math.round(t * 100) / 100);
+  return out;
+}
+
 export function ShotChart({ trace }: { trace: TracePoint[] }) {
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
 
@@ -63,9 +72,9 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
                 </text>
               </g>
             ))}
-            {Array.from({ length: 7 }, (_, i) => Math.round((span / 6) * i)).map((t, i) => (
+            {ticks(span).map((t) => (
               <text
-                key={i} x={x(t)} y={height - 4} textAnchor="middle"
+                key={t} x={x(t)} y={height - 4} textAnchor="middle"
                 fontSize={9} fill="hsl(var(--muted))"
               >
                 {t}
@@ -83,7 +92,7 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
           </svg>
         )}
       </div>
-      <div className="legend">
+      <div className="legend" style={{ paddingLeft: PAD.left }}>
         {SERIES.map((s) => (
           <span className="legend__i" key={s.key}>
             <span className="legend__s" style={{ background: s.color }} />
