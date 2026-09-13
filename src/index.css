@@ -14,7 +14,6 @@
   --rule: 30 8% 82%;
   --accent: 22 95% 48%;
   --accent-fg: 40 20% 98%;
-  --warn: 45 100% 42%;
   --danger: 4 76% 48%;
 
   /* Bauhaus primaries: three channels that stay separable at a metre. */
@@ -24,6 +23,8 @@
   --ch-target: 30 6% 62%;
 
   --rule-w: 1px;
+  --gutter: 16px;
+  --band: 16px;
 
   /* Key light from above. Information surfaces stay flat; only controls are
      machined, so a raised face reads as "this is a thing you can press". */
@@ -50,7 +51,6 @@
     --rule: 30 7% 22%;
     --accent: 22 95% 52%;
     --accent-fg: 30 10% 6%;
-    --warn: 45 100% 55%;
     --danger: 4 80% 58%;
     --ch-pressure: 4 80% 58%;
     --ch-flow: 213 88% 62%;
@@ -75,7 +75,6 @@
   --rule: 30 7% 22%;
   --accent: 22 95% 52%;
   --accent-fg: 30 10% 6%;
-  --warn: 45 100% 55%;
   --danger: 4 80% 58%;
   --ch-pressure: 4 80% 58%;
   --ch-flow: 213 88% 62%;
@@ -130,23 +129,34 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 12px var(--gutter);
   border-bottom: var(--rule-w) solid hsl(var(--rule));
   gap: 16px;
 }
-.wordmark { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+.state { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; }
+.state--busy { color: hsl(var(--accent)); }
 
 .alerts { display: flex; gap: 8px; align-items: center; }
+/* Monochrome by rule: colour on this screen means a data channel or an engaged
+   control, never an alert. Urgency is carried by the word and the inversion. */
 .alert {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 4px 8px;
-  color: hsl(var(--accent-fg));
+  background: hsl(var(--fg));
+  color: hsl(var(--bg));
 }
-.alert--warn { background: hsl(var(--warn)); }
-.alert--danger { background: hsl(var(--danger)); }
+.alert--urgent {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(var(--fg)) 0 6px,
+    hsl(var(--bg)) 6px 8px
+  );
+  color: hsl(var(--bg));
+  text-shadow: 0 0 3px hsl(var(--fg)), 0 0 3px hsl(var(--fg));
+}
 
 .body { flex: 1; min-height: 0; display: flex; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -158,17 +168,17 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 9px 16px;
+  padding: 12px var(--gutter);
   border-bottom: var(--rule-w) solid hsl(var(--rule));
 }
-.ident__line { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; min-width: 0; }
+.ident__line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .ident__name { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
 .ident__sep { color: hsl(var(--rule)); }
 .ident__meta { font-size: 12px; color: hsl(var(--muted)); }
 
-.grind { display: flex; align-items: center; gap: 8px; flex: none; }
+.grind { display: flex; align-items: center; gap: 12px; flex: none; }
 .grind__v { font-size: 20px; font-weight: 700; line-height: 1; }
-.grind__pair { display: flex; gap: 3px; }
+.grind__pair { display: flex; gap: 4px; }
 
 .step {
   width: 32px; height: 28px;
@@ -186,17 +196,18 @@ body {
 
 /* ---- readout band ---- */
 
-.read { display: flex; gap: 34px; padding: 16px; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
+.read { display: flex; align-items: baseline; gap: 32px; padding: var(--band) var(--gutter); border-bottom: var(--rule-w) solid hsl(var(--rule)); }
 .read__cell { display: flex; flex-direction: column; gap: 8px; }
-.read__v { font-size: 46px; font-weight: 700; line-height: 0.95; }
+.read__v { font-size: 52px; font-weight: 700; line-height: 0.9; }
+.read__cell--minor .read__v { font-size: 24px; font-weight: 600; }
 .read__spacer { flex: 1; }
 
 /* ---- chart ---- */
 
-.chartwrap { flex: 1; min-height: 120px; display: flex; flex-direction: column; padding: 8px 16px 6px; }
+.chartwrap { flex: 1; min-height: 120px; display: flex; flex-direction: column; padding: 8px var(--gutter); }
 .chart__svg { flex: 1; width: 100%; min-height: 0; display: block; }
-.legend { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 6px; }
-.legend__i { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--muted)); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; padding-top: 8px; }
+.legend__i { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--muted)); }
 .legend__s { width: 12px; height: 3px; }
 
 /* ---- mode rail: hard blocks, active one filled ---- */
@@ -243,8 +254,8 @@ body {
   border: 0;
   border-right: var(--rule-w) solid hsl(var(--rule));
   color: hsl(var(--muted));
-  padding: 0 18px;
-  min-height: 46px;
+  padding: 0 var(--gutter);
+  min-height: 48px;
   cursor: pointer;
   transition: color 120ms ease-out, background-color 120ms ease-out;
 }
@@ -264,13 +275,13 @@ body {
 
 /* ---- generic panel used by the non-brew tabs ---- */
 
-.panel { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+.panel { flex: 1; min-height: 0; overflow-y: auto; padding: var(--band) var(--gutter); }
 .rows { display: flex; flex-direction: column; }
 .row {
   display: flex;
   align-items: baseline;
-  gap: 18px;
-  padding: 11px 0;
+  gap: 16px;
+  padding: 12px 0;
   border-bottom: var(--rule-w) solid hsl(var(--rule));
 }
 .row__main { flex: 1; min-width: 0; }
@@ -291,7 +302,7 @@ body {
   color: hsl(var(--accent-fg));
   border: 0;
   min-height: 44px;
-  padding: 0 22px;
+  padding: 0 20px;
   cursor: pointer;
   box-shadow: var(--raise);
   transition: box-shadow 90ms ease-out, transform 90ms ease-out;
@@ -305,7 +316,7 @@ body {
 }
 .btn:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 2px; }
 
-.field { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 13px 0; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 0; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
 .field__in {
   font: inherit;
   font-size: 16px;
@@ -316,7 +327,7 @@ body {
   color: hsl(var(--fg));
   border: 0;
   border-bottom: 2px solid hsl(var(--rule));
-  padding: 4px 2px;
+  padding: 4px 0;
 }
 .field__in:focus { outline: none; border-bottom-color: hsl(var(--accent)); }
 
@@ -325,8 +336,8 @@ body {
   .rail { width: auto; flex-direction: row; border-left: 0; border-top: var(--rule-w) solid hsl(var(--rule)); }
   .mode { min-height: 56px; border-bottom: 0; border-right: var(--rule-w) solid hsl(var(--rule)); }
   .mode:last-child { border-right: 0; }
-  .read { gap: 18px; flex-wrap: wrap; }
-  .ident { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .read { gap: 20px; flex-wrap: wrap; }
+  .ident { flex-direction: column; align-items: flex-start; gap: 12px; }
   .ident__name { font-size: 20px; }
   .tab { padding: 0 12px; }
 }

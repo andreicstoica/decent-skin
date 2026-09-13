@@ -30,9 +30,19 @@ function daysAgo(iso: string) {
   return days === 0 ? "today" : `${days} days`;
 }
 
-function Read({ label, value, color }: { label: string; value: string; color?: string }) {
+function Read({
+  label,
+  value,
+  color,
+  minor,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  minor?: boolean;
+}) {
   return (
-    <div className="read__cell">
+    <div className={`read__cell ${minor ? "read__cell--minor" : ""}`}>
       <span className="lbl">{label}</span>
       <span className="read__v num" style={color ? { color } : undefined}>{value}</span>
     </div>
@@ -103,14 +113,20 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
         </div>
 
         <div className="read">
-          <Read label="Time" value={elapsed.toFixed(1)} />
-          <Read label="Pressure" value={snapshot.pressure.toFixed(1)} color="hsl(var(--ch-pressure))" />
-          <Read label="Flow" value={snapshot.flow.toFixed(1)} color="hsl(var(--ch-flow))" />
-          <Read label="In cup" value={weight === null ? "—" : weight.toFixed(1)} color="hsl(var(--ch-weight))" />
+          <Read label={PHASE[snapshot.state.substate] ?? "Time"} value={elapsed.toFixed(1)} />
+          <Read
+            label="In cup"
+            value={weight === null ? "—" : weight.toFixed(1)}
+            color="hsl(var(--ch-weight))"
+          />
           <span className="read__spacer" />
-          {PHASE[snapshot.state.substate] && (
-            <Read label="Phase" value={PHASE[snapshot.state.substate]!} />
-          )}
+          <Read
+            minor
+            label="Pressure"
+            value={snapshot.pressure.toFixed(1)}
+            color="hsl(var(--ch-pressure))"
+          />
+          <Read minor label="Flow" value={snapshot.flow.toFixed(1)} color="hsl(var(--ch-flow))" />
         </div>
 
         <ShotChart trace={trace} />
