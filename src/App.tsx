@@ -3,87 +3,101 @@ import { restUrl } from "./api/gateway";
 import { useMachineSnapshot, useScale } from "./api/useTelemetry";
 import { useShotTimer } from "./api/useShotTimer";
 import { useShotTrace } from "./api/useShotTrace";
-import { useWaterLevel } from "./api/useWaterLevel";
+import { useWater } from "./api/useWater";
 import { useWorkflow } from "./api/useWorkflow";
+import { useSettings } from "./api/useSettings";
 import { BrewView } from "./views/BrewView";
-import { RestingView } from "./views/RestingView";
+import { ShotsView } from "./views/ShotsView";
+import { SettingsView } from "./views/SettingsView";
 import type { MachineState } from "./api/types";
 
-const TABS = ["Brew", "Shots", "Beans & grind", "Profiles", "Settings"] as const;
+const TABS = ["Brew", "Shots", "Beans", "Profiles", "Settings"] as const;
+type Tab = (typeof TABS)[number];
 
 const RESTING: ReadonlySet<MachineState> = new Set(["sleeping", "schedIdle"]);
 
 export default function App() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Brew");
+  const [tab, setTab] = useState<Tab>("Brew");
+  const settings = useSettings();
   const { snapshot, socket } = useMachineSnapshot();
   const scale = useScale();
-  const water = useWaterLevel();
+  const water = useWater(settings.tankFullMm);
   const { data: workflow } = useWorkflow();
   const { elapsed } = useShotTimer(snapshot);
   const { trace } = useShotTrace(snapshot, scale.weightFlow);
 
   const state = snapshot?.state.state;
   const resting = !!state && RESTING.has(state);
-
-  const sleep = () => void fetch(restUrl("/machine/state/sleeping"), { method: "PUT" });
+  const setMachine = (s: MachineState) =>
+    void fetch(restUrl(`/machine/state/${s}`), { method: "PUT" });
 
   return (
     <div className="app">
-      <header className="topbar">
-        <span className="brand">Crema</span>
-        <span className="topbar__meta">
-          {water
-            ? `water ${water.currentLevel.toFixed(0)}${
-                water.currentLevel <= water.refillLevel ? " · refill" : ""
-              }`
-            : socket === "open"
-              ? ""
-              : "gateway offline"}
-        </span>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span className="topbar__meta">
-            {scale.connected ? `scale ${scale.battery ?? "–"}%` : "no scale"}
-          </span>
-          <button className="btn btn--outline" style={{ minHeight: 32, padding: "0 12px" }} onClick={sleep}>
-            Sleep
+      <header className="head">
+        <span className="wordmark">Crema</span>
+        <div className="alerts">
+          {socket !== "open" && <span className="alert alert--danger">Gateway offline</span>}
+          {water?.status === "refill" && <span className="alert alert--danger">Refill water</span>}
+          {water?.status === "low" && <span className="alert alert--warn">Water low</span>}
+          {scale.connected && scale.battery !== null && scale.battery < 25 && (
+            <span className="alert alert--warn">Scale {scale.battery}%</span>
+          )}
+          <button
+            className="btn btn--quiet"
+            style={{ minHeight: 30, padding: "0 14px" }}
+            onClick={() => setMachine(resting ? "idle" : "sleeping")}
+          >
+            {resting ? "Wake" : "Sleep"}
           </button>
         </div>
       </header>
 
-      {snapshot && !resting && tab === "Brew" ? (
+      {!snapshot ? (
+        <div className="panel">
+          <div className="empty">
+            <h2 className="empty__h">Waiting for the machine</h2>
+            <p className="empty__p">
+              Decaid is not reporting telemetry. Check that it is running and a machine
+              is connected, then this fills in on its own.
+            </p>
+          </div>
+        </div>
+      ) : resting && tab === "Brew" ? (
+        <div className="panel">
+          <div className="empty">
+            <h2 className="empty__h">Asleep</h2>
+            <p className="empty__p">Waking takes about four minutes to reach brew temperature.</p>
+            <button className="btn" onClick={() => setMachine("idle")}>Wake the machine</button>
+          </div>
+        </div>
+      ) : tab === "Brew" ? (
         <BrewView
           snapshot={snapshot}
           workflow={workflow}
           weight={scale.weight}
           elapsed={elapsed}
           trace={trace}
+          settings={settings}
         />
-      ) : snapshot && !resting ? (
-        <div className="resting">
-          <h2 className="resting__headline">{tab}</h2>
-          <p className="resting__note">Not built yet. Brew is the only working tab.</p>
-        </div>
+      ) : tab === "Shots" ? (
+        <ShotsView />
+      ) : tab === "Settings" ? (
+        <SettingsView settings={settings} />
       ) : (
-        <RestingView
-          connected={!!snapshot}
-          lastShotAt={null}
-        />
+        <div className="panel">
+          <div className="empty">
+            <h2 className="empty__h">{tab}</h2>
+            <p className="empty__p">Not built yet.</p>
+          </div>
+        </div>
       )}
 
       <nav className="tabs">
         {TABS.map((t) => (
-          <button
-            key={t}
-            className={`tab ${t === tab ? "tab--active" : ""}`}
-            onClick={() => setTab(t)}
-          >
+          <button key={t} className={`tab ${t === tab ? "tab--on" : ""}`} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
-        <span className="tabs__spacer" />
-        <span className="tab" style={{ cursor: "default" }}>
-          {socket === "open" ? "connected" : "offline"}
-        </span>
       </nav>
     </div>
   );

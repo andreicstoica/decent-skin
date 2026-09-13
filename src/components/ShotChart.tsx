@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import type { TracePoint } from "../api/useShotTrace";
 
 const Y_MAX = 12;
-const MIN_WINDOW = 30;
+// Grows with the shot; a fixed 30s floor leaves a short shot stranded at the left.
+const MIN_WINDOW = 10;
 const PAD = { top: 8, right: 8, bottom: 18, left: 24 };
 
 const SERIES = [
-  { key: "pressure", label: "pressure · bar", color: "hsl(var(--chart-pressure))", dash: false },
-  { key: "flow", label: "flow · mL/s", color: "hsl(var(--chart-flow))", dash: false },
-  { key: "weightFlow", label: "weight · g/s", color: "hsl(var(--chart-weight))", dash: false },
-  { key: "targetPressure", label: "target pressure", color: "hsl(var(--chart-target))", dash: true },
-  { key: "targetFlow", label: "target flow", color: "hsl(var(--chart-target))", dash: true },
+  { key: "pressure", label: "pressure bar", color: "hsl(var(--ch-pressure))", dash: false },
+  { key: "flow", label: "flow mL/s", color: "hsl(var(--ch-flow))", dash: false },
+  { key: "weightFlow", label: "weight g/s", color: "hsl(var(--ch-weight))", dash: false },
+  { key: "targetPressure", label: "target", color: "hsl(var(--ch-target))", dash: true },
 ] as const;
 
 /** Rendered at true pixel size so strokes and labels are never scaled unevenly. */
@@ -33,7 +33,8 @@ function useElementSize<T extends HTMLElement>() {
 export function ShotChart({ trace }: { trace: TracePoint[] }) {
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
 
-  const span = Math.max(MIN_WINDOW, trace.length ? Math.ceil(trace[trace.length - 1].t) : 0);
+  const last = trace.length ? trace[trace.length - 1].t : 0;
+  const span = Math.max(MIN_WINDOW, Math.ceil(last / 10) * 10);
   const plotW = Math.max(0, width - PAD.left - PAD.right);
   const plotH = Math.max(0, height - PAD.top - PAD.bottom);
 
@@ -44,7 +45,7 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
     trace.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join("");
 
   return (
-    <div className="card chart">
+    <div className="chartwrap">
       <div ref={ref} style={{ flex: 1, minHeight: 0 }}>
         {width > 0 && (
           <svg className="chart__svg" width={width} height={height} role="img" aria-label="Live shot trace">
@@ -52,11 +53,11 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
               <g key={v}>
                 <line
                   x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)}
-                  stroke="hsl(var(--border))" strokeWidth={1}
+                  stroke="hsl(var(--rule))" strokeWidth={1}
                 />
                 <text
                   x={PAD.left - 5} y={y(v) + 3} textAnchor="end"
-                  fontSize={9} fill="hsl(var(--muted-foreground))"
+                  fontSize={9} fill="hsl(var(--muted))"
                 >
                   {v}
                 </text>
@@ -65,7 +66,7 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
             {Array.from({ length: 7 }, (_, i) => Math.round((span / 6) * i)).map((t, i) => (
               <text
                 key={i} x={x(t)} y={height - 4} textAnchor="middle"
-                fontSize={9} fill="hsl(var(--muted-foreground))"
+                fontSize={9} fill="hsl(var(--muted))"
               >
                 {t}
               </text>
@@ -84,8 +85,8 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
       </div>
       <div className="legend">
         {SERIES.map((s) => (
-          <span className="legend__item" key={s.key}>
-            <span className="legend__swatch" style={{ background: s.color }} />
+          <span className="legend__i" key={s.key}>
+            <span className="legend__s" style={{ background: s.color }} />
             {s.label}
           </span>
         ))}
