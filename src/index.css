@@ -24,6 +24,17 @@
   --ch-target: 30 6% 62%;
 
   --rule-w: 1px;
+
+  /* Key light from above. Information surfaces stay flat; only controls are
+     machined, so a raised face reads as "this is a thing you can press". */
+  --face: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0.035));
+  --raise:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+  --press:
+    inset 0 2px 4px rgba(0, 0, 0, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.3);
 }
 
 @media only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-resolution: 192dpi) {
@@ -45,6 +56,14 @@
     --ch-flow: 213 88% 62%;
     --ch-weight: 44 95% 56%;
     --ch-target: 30 6% 38%;
+    --face: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.16));
+    --raise:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.4);
+    --press:
+      inset 0 2px 5px rgba(0, 0, 0, 0.55),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -62,6 +81,14 @@
   --ch-flow: 213 88% 62%;
   --ch-weight: 44 95% 56%;
   --ch-target: 30 6% 38%;
+  --face: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.16));
+  --raise:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  --press:
+    inset 0 2px 5px rgba(0, 0, 0, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
 * { box-sizing: border-box; }
@@ -128,37 +155,40 @@ body {
 
 .ident {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 14px 16px;
+  gap: 20px;
+  padding: 9px 16px;
   border-bottom: var(--rule-w) solid hsl(var(--rule));
 }
-.ident__name { font-size: 26px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 6px; }
-.facts { display: flex; gap: 20px; flex-wrap: wrap; }
-.fact { display: flex; flex-direction: column; gap: 4px; }
-.fact__v { font-size: 12px; font-weight: 600; }
+.ident__line { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; min-width: 0; }
+.ident__name { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
+.ident__sep { color: hsl(var(--rule)); }
+.ident__meta { font-size: 12px; color: hsl(var(--muted)); }
 
-.grind { display: flex; align-items: flex-end; gap: 10px; flex: none; }
-.grind__v { font-size: 38px; font-weight: 700; line-height: 0.85; }
-.grind__pair { display: flex; flex-direction: column; gap: 2px; }
+.grind { display: flex; align-items: center; gap: 8px; flex: none; }
+.grind__v { font-size: 20px; font-weight: 700; line-height: 1; }
+.grind__pair { display: flex; gap: 3px; }
 
 .step {
-  width: 34px; height: 26px;
+  width: 32px; height: 28px;
   font: inherit; font-size: 15px; font-weight: 700; line-height: 1;
-  background: transparent;
+  background-color: hsl(var(--bg));
+  background-image: var(--face);
   color: hsl(var(--fg));
   border: var(--rule-w) solid hsl(var(--rule));
+  box-shadow: var(--raise);
   cursor: pointer;
+  transition: box-shadow 90ms ease-out, transform 90ms ease-out;
 }
-.step:active { background: hsl(var(--faint)); }
-.step[disabled] { color: hsl(var(--rule)); cursor: default; }
+.step:active { box-shadow: var(--press); transform: translateY(1px); }
+.step[disabled] { color: hsl(var(--rule)); cursor: default; box-shadow: none; background-image: none; }
 
 /* ---- readout band ---- */
 
-.read { display: flex; gap: 28px; padding: 12px 16px; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
-.read__cell { display: flex; flex-direction: column; gap: 6px; }
-.read__v { font-size: 30px; font-weight: 700; line-height: 1; }
+.read { display: flex; gap: 34px; padding: 16px; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
+.read__cell { display: flex; flex-direction: column; gap: 8px; }
+.read__v { font-size: 46px; font-weight: 700; line-height: 0.95; }
 .read__spacer { flex: 1; }
 
 /* ---- chart ---- */
@@ -184,11 +214,20 @@ body {
   border: 0;
   border-bottom: var(--rule-w) solid hsl(var(--rule));
   cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
+  background-image: var(--face);
+  box-shadow: var(--raise);
+  transition: background-color 120ms ease-out, color 120ms ease-out,
+    box-shadow 90ms ease-out, transform 90ms ease-out;
 }
 .mode:last-child { border-bottom: 0; }
-.mode--on { background: hsl(var(--accent)); color: hsl(var(--accent-fg)); }
-.mode[disabled] { color: hsl(var(--rule)); cursor: default; }
+/* An engaged mode stays pressed in, not merely coloured. */
+.mode--on {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-fg));
+  box-shadow: var(--press);
+}
+.mode:active:not([disabled]) { box-shadow: var(--press); transform: translateY(1px); }
+.mode[disabled] { color: hsl(var(--rule)); cursor: default; box-shadow: none; background-image: none; }
 .mode:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: -4px; }
 
 /* ---- tabs ---- */
@@ -219,7 +258,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tab, .mode { transition: none; }
+  .tab, .mode, .step, .btn { transition: none; }
+  .mode:active, .step:active, .btn:active { transform: none; }
 }
 
 /* ---- generic panel used by the non-brew tabs ---- */
@@ -253,8 +293,16 @@ body {
   min-height: 44px;
   padding: 0 22px;
   cursor: pointer;
+  box-shadow: var(--raise);
+  transition: box-shadow 90ms ease-out, transform 90ms ease-out;
 }
-.btn--quiet { background: transparent; color: hsl(var(--fg)); border: var(--rule-w) solid hsl(var(--rule)); }
+.btn:active { box-shadow: var(--press); transform: translateY(1px); }
+.btn--quiet {
+  background-color: hsl(var(--bg));
+  background-image: var(--face);
+  color: hsl(var(--fg));
+  border: var(--rule-w) solid hsl(var(--rule));
+}
 .btn:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 2px; }
 
 .field { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 13px 0; border-bottom: var(--rule-w) solid hsl(var(--rule)); }

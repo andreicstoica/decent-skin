@@ -6,6 +6,8 @@ import { useShotTrace } from "./api/useShotTrace";
 import { useWater } from "./api/useWater";
 import { useWorkflow } from "./api/useWorkflow";
 import { useSettings } from "./api/useSettings";
+import { useDecaidSettings } from "./api/useDecaidSettings";
+import { useEffect } from "react";
 import { BrewView } from "./views/BrewView";
 import { ShotsView } from "./views/ShotsView";
 import { SettingsView } from "./views/SettingsView";
@@ -19,6 +21,15 @@ const RESTING: ReadonlySet<MachineState> = new Set(["sleeping", "schedIdle"]);
 export default function App() {
   const [tab, setTab] = useState<Tab>("Brew");
   const settings = useSettings();
+  const { data: app } = useDecaidSettings();
+
+  // Follow Decaid's own theme setting; "system" falls through to themedia query.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!app || app.themeMode === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", app.themeMode);
+  }, [app]);
+
   const { snapshot, socket } = useMachineSnapshot();
   const scale = useScale();
   const water = useWater(settings.tankFullMm);
@@ -77,12 +88,11 @@ export default function App() {
           weight={scale.weight}
           elapsed={elapsed}
           trace={trace}
-          settings={settings}
         />
       ) : tab === "Shots" ? (
         <ShotsView />
       ) : tab === "Settings" ? (
-        <SettingsView settings={settings} />
+        <SettingsView />
       ) : (
         <div className="panel">
           <div className="empty">

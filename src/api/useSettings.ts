@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
 
+/**
+ * The only genuinely skin-local setting. Everything else mirrors Decaid's own
+ * settings endpoints; nothing in Decaid knows how deep the water tank is.
+ */
 export interface SkinSettings {
-  /** Water depth in mm that counts as a full tank. The DE1 reports depth, not
-   *  volume or percent, and has no idea how tall your tank is. */
   tankFullMm: number;
-  flushSeconds: number;
-  flushFlow: number;
 }
 
-export const DEFAULTS: SkinSettings = { tankFullMm: 70, flushSeconds: 5, flushFlow: 8 };
+export const DEFAULTS: SkinSettings = { tankFullMm: 70 };
 
 const KEY = restUrl("/store/decent-skin/settings");
 

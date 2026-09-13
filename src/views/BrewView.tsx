@@ -1,7 +1,6 @@
 import { restUrl } from "../api/gateway";
 import { ShotChart } from "../components/ShotChart";
 import { useBeanBatch, useGrinder, useSetGrindSetting, type Workflow } from "../api/useWorkflow";
-import type { SkinSettings } from "../api/useSettings";
 import type { TracePoint } from "../api/useShotTrace";
 import type { MachineSnapshot, MachineState, MachineSubstate } from "../api/types";
 
@@ -31,15 +30,6 @@ function daysAgo(iso: string) {
   return days === 0 ? "today" : `${days} days`;
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="fact">
-      <span className="lbl">{label}</span>
-      <span className="fact__v num">{value}</span>
-    </div>
-  );
-}
-
 function Read({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="read__cell">
@@ -60,10 +50,8 @@ function Grind({ setting, grinderId }: { setting?: string; grinderId?: string })
 
   return (
     <div className="grind">
-      <div className="fact">
-        <span className="lbl">Grind{grinder?.model ? ` · ${grinder.model}` : ""}</span>
-        <span className="grind__v num">{setting ?? "—"}</span>
-      </div>
+      <span className="lbl">Grind</span>
+      <span className="grind__v num">{setting ?? "—"}</span>
       <div className="grind__pair">
         <button className="step" onClick={() => step(1)} disabled={!steppable} aria-label="Coarser">+</button>
         <button className="step" onClick={() => step(-1)} disabled={!steppable} aria-label="Finer">−</button>
@@ -78,49 +66,38 @@ interface BrewViewProps {
   weight: number | null;
   elapsed: number;
   trace: TracePoint[];
-  settings: SkinSettings;
 }
 
-export function BrewView({ snapshot, workflow, weight, elapsed, trace, settings }: BrewViewProps) {
+export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewViewProps) {
   const ctx = workflow?.context;
   const { data: batch } = useBeanBatch(ctx?.beanBatchId);
   const roast = batch?.roastDate ? daysAgo(batch.roastDate) : null;
   const busy = snapshot.state.state !== "idle";
 
-  const run = async (mode: MachineState) => {
-    // Flush duration and flow live on the workflow's rinseData, so the button
-    // pushes the configured values before asking the machine to flush.
-    if (mode === "flush") {
-      await fetch(restUrl("/workflow"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rinseData: { duration: settings.flushSeconds, flow: settings.flushFlow },
-        }),
-      });
-    }
+  const run = (mode: MachineState) =>
     void fetch(restUrl(`/machine/state/${mode}`), { method: "PUT" });
-  };
 
   return (
     <div className="body">
       <div className="main">
         <div className="ident">
-          <div>
+          <div className="ident__line">
             <h1 className="ident__name">{ctx?.coffeeName ?? "No bean selected"}</h1>
-            <div className="facts">
-              <Fact label="Roaster" value={ctx?.coffeeRoaster ?? "—"} />
-              {roast && <Fact label="Off roast" value={roast} />}
-              <Fact
-                label="Dose → yield"
-                value={
-                  ctx?.targetDoseWeight && ctx?.targetYield
-                    ? `${ctx.targetDoseWeight.toFixed(1)} → ${ctx.targetYield.toFixed(0)} g`
-                    : "—"
-                }
-              />
-              <Fact label="Profile" value={workflow?.profile?.title ?? "—"} />
-            </div>
+            {[
+              ctx?.coffeeRoaster,
+              roast,
+              ctx?.targetDoseWeight && ctx?.targetYield
+                ? `${ctx.targetDoseWeight.toFixed(1)} → ${ctx.targetYield.toFixed(0)} g`
+                : null,
+              workflow?.profile?.title,
+            ]
+              .filter(Boolean)
+              .map((bit) => (
+                <span key={bit as string} className="ident__meta">
+                  <span className="ident__sep">/ </span>
+                  {bit}
+                </span>
+              ))}
           </div>
           <Grind setting={ctx?.grinderSetting} grinderId={ctx?.grinderId} />
         </div>
