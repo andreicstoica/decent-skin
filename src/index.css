@@ -5,18 +5,16 @@
  * (49) are safe and carry the layout.
  */
 :root {
-  /* Warm near-black: the screen is wall-mounted and lit for hours. */
   --bg: #12100e;
   --surface: #1c1917;
   --raised: #262220;
-  /* Dark mode wants solid borders; alpha whites glow against a dark ground. */
   --border: #332e2a;
 
   --text: #f5f1ec;
   --text-dim: #a29a93;
   --text-faint: #6b635c;
 
-  /* DE1 app channel conventions, so the colours transfer from the stock UI. */
+  /* DE1 app channel conventions; changing these breaks transfer from the stock UI. */
   --pressure: #3fbf6f;
   --flow: #3f9fe0;
   --temp: #e0693f;
@@ -47,7 +45,6 @@ body {
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* A machine-side display is a control surface, not a document. */
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -154,7 +151,6 @@ body {
 .metric {
   background: var(--surface);
   border: 1px solid var(--border);
-  /* Inner radius steps down from the tile's own padding. */
   border-radius: 10px;
   padding: calc(var(--step) * 2);
   display: grid;
@@ -172,7 +168,6 @@ body {
   min-height: 1em;
 }
 
-/* The bar is the only thing on screen that reads at a glance from a metre. */
 .bar {
   position: relative;
   height: 4px;
@@ -221,7 +216,7 @@ body {
   background: var(--text);
   border: 0;
   border-radius: 10px;
-  /* 44px enhanced target, and this gets pressed with wet hands. */
+  /* Above the 44px target: pressed with wet hands. */
   min-height: 56px;
   padding: 0 calc(var(--step) * 4);
   cursor: pointer;
@@ -246,7 +241,7 @@ body {
   .button:active { transform: none; }
 }
 
-/* Content-driven, not device-driven: the four-across metric row is what breaks. */
+/* Where the four-across metric row breaks, not a device width. */
 @media (max-width: 720px) {
   :root {
     --t-hero: 56px;

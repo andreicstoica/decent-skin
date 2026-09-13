@@ -37,7 +37,6 @@ export default function App() {
       if (!res.ok) return null;
       return (await res.json()) as { timestamp: string } | null;
     },
-    // History is not live data; polling it at telemetry rates is waste.
     refetchInterval: 60_000,
   });
 

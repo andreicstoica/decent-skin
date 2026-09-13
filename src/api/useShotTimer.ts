@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { EXTRACTING, type MachineSnapshot } from "./types";
 
-/**
- * Elapsed extraction time, derived from state transitions rather than a shot
- * record, so it is correct mid-shot before anything has been stored.
- */
+// Derived from state transitions, not the shot record: no record exists until
+// the shot ends.
 export function useShotTimer(snapshot: MachineSnapshot | null) {
   const [elapsed, setElapsed] = useState(0);
   const startedAt = useRef<number | null>(null);

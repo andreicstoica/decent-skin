@@ -3,12 +3,11 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
-  // Decaid serves a skin from a folder on an assigned port. Relative asset URLs
-  // keep the build working regardless of the port it lands on.
+  // Decaid serves the skin from a port it assigns; absolute asset URLs 404.
   base: './',
   build: {
-    // The Decent tablet ships an old Android System WebView. Raise this only
-    // after checking the WebView version on the actual tablet.
+    // Pinned to the tablet's Android System WebView. Raise once that version is
+    // confirmed; see browserslist in package.json.
     target: ['es2019', 'chrome74', 'safari13'],
   },
   server: { host: true },

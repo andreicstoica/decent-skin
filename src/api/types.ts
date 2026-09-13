@@ -8,7 +8,6 @@ export type MachineSubstate =
   | "cleaningStart" | "cleaningGroup" | "cleanSoaking" | "cleaningSteam"
   | "pausedSteam" | "puffing";
 
-/** ws/v1/machine/snapshot, ~10 Hz */
 export interface MachineSnapshot {
   timestamp: string;
   state: { state: MachineState; substate: MachineSubstate };
@@ -24,10 +23,6 @@ export interface MachineSnapshot {
   steamTemperature: number;
 }
 
-/**
- * ws/v1/scale/snapshot multiplexes two frame shapes on one socket. Branch on
- * the presence of `status` vs `weight`; there is no discriminator field.
- */
 export type ScaleFrame =
   | { status: "connected" | "disconnected" }
   | { timestamp: string; weight: number; batteryLevel: number };
