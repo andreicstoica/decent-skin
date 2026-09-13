@@ -472,3 +472,14 @@ body {
   padding: 10px;
 }
 .notes:focus { outline: none; border-color: hsl(var(--accent)); }
+
+.shot__flag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: hsl(var(--fg));
+  color: hsl(var(--bg));
+}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useShots } from "../api/useShots";
+import { endedEarly, stopLabel, useShots } from "../api/useShots";
 import { ShotDetailView } from "./ShotDetailView";
 
 const WHEN: Intl.DateTimeFormatOptions = {
@@ -51,9 +51,12 @@ export function ShotsView() {
               </span>
               <span className="shot__main">
                 <span className="row__title">{ctx?.coffeeName ?? "Unlabelled"}</span>
-                {shot.workflow?.profile?.title && (
-                  <span className="row__sub shot__profile">{shot.workflow.profile.title}</span>
-                )}
+                <span className="row__sub shot__profile">
+                  {shot.workflow?.profile?.title}
+                  {endedEarly(shot.stopReason) && (
+                    <span className="shot__flag">{stopLabel(shot.stopReason)}</span>
+                  )}
+                </span>
               </span>
               <span className="num shot__n">
                 {(a?.actualDoseWeight ?? ctx?.targetDoseWeight)?.toFixed(1) ?? "—"}

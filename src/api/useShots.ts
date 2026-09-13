@@ -13,6 +13,7 @@ export interface ShotContext {
 export interface ShotSummary {
   id: string;
   timestamp: string;
+  stopReason?: string;
   workflow?: { profile?: { title?: string }; context?: ShotContext };
   annotations?: {
     actualDoseWeight?: number;
@@ -84,3 +85,29 @@ export function useAnnotate(id: string | null) {
     },
   });
 }
+
+/**
+ * Decaid documents stopReason as an open set, so unknown values fall through to
+ * the raw string rather than being dropped. `apiStop` means a REST client sent
+ * the stop; in this skin that client is the Stop button, i.e. a person.
+ */
+const STOP_REASON: Record<string, string> = {
+  targetWeight: "Hit target weight",
+  targetVolume: "Hit target volume",
+  apiStop: "Stopped by hand",
+  appStop: "Stopped in Decaid",
+  machineEnded: "Profile ended or group control",
+  profileAdvance: "Profile ran to the end",
+  profileSkip: "Step skipped",
+  noScale: "Blocked, no scale",
+  error: "Ended on an error",
+  disconnected: "Machine disconnected",
+};
+
+/** Reasons that mean the shot ran as intended. */
+const CLEAN = new Set(["targetWeight", "targetVolume", "profileAdvance", "machineEnded"]);
+
+export const stopLabel = (reason?: string) =>
+  reason ? (STOP_REASON[reason] ?? reason) : null;
+
+export const endedEarly = (reason?: string) => !!reason && !CLEAN.has(reason);

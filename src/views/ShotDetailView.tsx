@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAnnotate, useShot, type Annotations } from "../api/useShots";
+import { stopLabel, useAnnotate, useShot, type Annotations } from "../api/useShots";
 import { ShotChart } from "../components/ShotChart";
 import type { TracePoint } from "../api/useShotTrace";
 
@@ -68,7 +68,7 @@ export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void 
               : "—"
           }
         />
-        {shot.stopReason && <Fact label="Stopped by" value={shot.stopReason} />}
+        {shot.stopReason && <Fact label="Ended" value={stopLabel(shot.stopReason)!} />}
       </div>
 
       {trace.length > 1 && (
