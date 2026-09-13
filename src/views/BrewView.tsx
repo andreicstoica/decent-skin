@@ -19,13 +19,12 @@ const PHASE: Partial<Record<MachineSubstate, string>> = {
   cleaningSteam: "Cleaning",
 };
 
-const MODES: { label: string; state: MachineState }[] = [
+const MODES: { label: string; state: MachineState; power?: true }[] = [
   { label: "Espresso", state: "espresso" },
   { label: "Steam", state: "steam" },
   { label: "Water", state: "hotWater" },
   { label: "Flush", state: "flush" },
-  // Sleep is a machine state like any other, so it belongs with its siblings.
-  { label: "Sleep", state: "sleeping" },
+  { label: "Sleep", state: "sleeping", power: true },
 ];
 
 function daysAgo(iso: string) {
@@ -53,6 +52,21 @@ function Read({
   );
 }
 
+function Ratio({ dose, yieldTarget }: { dose?: number; yieldTarget?: number }) {
+  const ratio = dose && yieldTarget ? (yieldTarget / dose).toFixed(1) : null;
+  return (
+    <div className="dial">
+      <span className="lbl">In → out</span>
+      <div className="dial__row">
+        <span className="dial__v num">
+          {dose ? dose.toFixed(1) : "—"} → {yieldTarget ? yieldTarget.toFixed(0) : "—"}
+        </span>
+        {ratio && <span className="dial__sub num">1:{ratio}</span>}
+      </div>
+    </div>
+  );
+}
+
 function Grind({ setting, grinderId }: { setting?: string; grinderId?: string }) {
   const setGrind = useSetGrindSetting();
   const { data: grinder } = useGrinder(grinderId);
@@ -63,12 +77,14 @@ function Grind({ setting, grinderId }: { setting?: string; grinderId?: string })
     setGrind.mutate((numeric + direction * increment).toFixed(increment < 1 ? 1 : 0));
 
   return (
-    <div className="grind">
+    <div className="dial dial--ruled">
       <span className="lbl">Grind</span>
-      <span className="grind__v num">{setting ?? "—"}</span>
-      <div className="grind__pair">
-        <button className="step" onClick={() => step(1)} disabled={!steppable} aria-label="Coarser">+</button>
-        <button className="step" onClick={() => step(-1)} disabled={!steppable} aria-label="Finer">−</button>
+      <div className="dial__row">
+        <span className="dial__v num">{setting ?? "—"}</span>
+        <div className="grind__pair">
+          <button className="step" onClick={() => step(1)} disabled={!steppable} aria-label="Coarser">+</button>
+          <button className="step" onClick={() => step(-1)} disabled={!steppable} aria-label="Finer">−</button>
+        </div>
       </div>
     </div>
   );
@@ -106,14 +122,7 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
               {STATE_LABEL[snapshot.state.state]}
             </span>
             <h1 className="ident__name">{ctx?.coffeeName ?? "No bean selected"}</h1>
-            {[
-              ctx?.coffeeRoaster,
-              roast,
-              ctx?.targetDoseWeight && ctx?.targetYield
-                ? `${ctx.targetDoseWeight.toFixed(1)} → ${ctx.targetYield.toFixed(0)} g`
-                : null,
-              workflow?.profile?.title,
-            ]
+            {[ctx?.coffeeRoaster, roast, workflow?.profile?.title]
               .filter(Boolean)
               .map((bit) => (
                 <span key={bit as string} className="ident__meta">
@@ -122,7 +131,10 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
                 </span>
               ))}
           </div>
-          <Grind setting={ctx?.grinderSetting} grinderId={ctx?.grinderId} />
+          <div className="dials">
+            <Ratio dose={ctx?.targetDoseWeight} yieldTarget={ctx?.targetYield} />
+            <Grind setting={ctx?.grinderSetting} grinderId={ctx?.grinderId} />
+          </div>
         </div>
 
         <div className="read">
@@ -151,9 +163,10 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
           return (
             <button
               key={mode.state}
-              className={`mode ${on ? "mode--on" : ""}`}
+              className={`mode ${on ? "mode--on" : ""} ${mode.power ? "mode--power" : ""}`}
               onClick={() => (on ? run("idle") : run(mode.state))}
-              disabled={busy && !on}
+              // You must be able to send a heating machine to sleep.
+              disabled={!mode.power && busy && !on}
             >
               {on && mode.state === "flush" && flushLeft > 0 ? (
                 <span className="mode__count">{Math.ceil(flushLeft)}</span>
