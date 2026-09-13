@@ -8,7 +8,7 @@ export default defineConfig({
   build: {
     // Pinned to the tablet's Android System WebView. Raise once that version is
     // confirmed; see browserslist in package.json.
-    target: ['es2019', 'chrome74', 'safari13'],
+    target: ['es2020', 'chrome90', 'safari14'],
   },
   server: { host: true },
 })

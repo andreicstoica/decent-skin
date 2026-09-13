@@ -43,11 +43,11 @@ export function RestingView({ lastShotAt, connected }: RestingViewProps) {
           ? `Last shot ${lastShotAt}. Waking takes about four minutes to reach brew temperature.`
           : "Waking takes about four minutes to reach brew temperature."}
       </p>
-      <button className="button" onClick={wake} disabled={waking}>
+      <button className="btn btn--primary" onClick={wake} disabled={waking}>
         {waking ? "Waking…" : "Wake the machine"}
       </button>
       {error && (
-        <p className="resting__note" style={{ color: "var(--temp)" }}>
+        <p className="resting__note" style={{ color: "hsl(var(--destructive))" }}>
           {error}. Check that Decaid is running and the machine is connected.
         </p>
       )}

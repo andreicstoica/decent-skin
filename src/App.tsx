@@ -1,80 +1,84 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { restUrl } from "./api/gateway";
 import { useMachineSnapshot, useScale } from "./api/useTelemetry";
 import { useShotTimer } from "./api/useShotTimer";
-import { ShotView } from "./views/ShotView";
+import { useShotTrace } from "./api/useShotTrace";
+import { useWaterLevel } from "./api/useWaterLevel";
+import { useWorkflow } from "./api/useWorkflow";
+import { BrewView } from "./views/BrewView";
 import { RestingView } from "./views/RestingView";
 import type { MachineState } from "./api/types";
 
-const STATE_LABELS: Record<MachineState, string> = {
-  booting: "Starting up",
-  busy: "Busy",
-  idle: "Ready",
-  schedIdle: "Scheduled standby",
-  sleeping: "Asleep",
-  heating: "Heating",
-  preheating: "Preheating",
-  espresso: "Espresso",
-  hotWater: "Hot water",
-  flush: "Flushing",
-  steam: "Steam",
-  steamRinse: "Steam rinse",
-  skipStep: "Skipping step",
-  cleaning: "Cleaning",
-};
+const TABS = ["Brew", "Shots", "Beans & grind", "Profiles", "Settings"] as const;
 
 const RESTING: ReadonlySet<MachineState> = new Set(["sleeping", "schedIdle"]);
 
 export default function App() {
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Brew");
   const { snapshot, socket } = useMachineSnapshot();
   const scale = useScale();
+  const water = useWaterLevel();
+  const { data: workflow } = useWorkflow();
   const { elapsed } = useShotTimer(snapshot);
-
-  const { data: latestShot } = useQuery({
-    queryKey: ["latest-shot"],
-    queryFn: async () => {
-      const res = await fetch(restUrl("/shots/latest"));
-      if (!res.ok) return null;
-      return (await res.json()) as { timestamp: string } | null;
-    },
-    refetchInterval: 60_000,
-  });
+  const { trace } = useShotTrace(snapshot, scale.weight);
 
   const state = snapshot?.state.state;
   const resting = !!state && RESTING.has(state);
 
+  const sleep = () => void fetch(restUrl("/machine/state/sleeping"), { method: "PUT" });
+
   return (
-    <div className="screen">
-      <header className="statusbar">
-        <span className="statusbar__state">
-          {state ? STATE_LABELS[state] : "Connecting…"}
+    <div className="app">
+      <header className="topbar">
+        <span className="brand">Crema</span>
+        <span className="topbar__meta">
+          {water ? `water ${water.currentLevel} mL` : socket === "open" ? "" : "gateway offline"}
         </span>
-        <div className="chips">
-          <span className="chip">
-            <span className={`dot ${socket === "open" ? "dot--live" : "dot--warn"}`} />
-            {socket === "open" ? "Gateway" : "Gateway offline"}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span className="topbar__meta">
+            {scale.connected ? `scale ${scale.battery ?? "–"}%` : "no scale"}
           </span>
-          <span className="chip">
-            <span className={`dot ${scale.connected ? "dot--live" : ""}`} />
-            {scale.connected
-              ? `Scale${scale.battery === null ? "" : ` ${scale.battery}%`}`
-              : "No scale"}
-          </span>
+          <button className="btn btn--outline" style={{ minHeight: 32, padding: "0 12px" }} onClick={sleep}>
+            Sleep
+          </button>
         </div>
       </header>
 
-      {resting || !snapshot ? (
+      {snapshot && !resting && tab === "Brew" ? (
+        <BrewView
+          snapshot={snapshot}
+          workflow={workflow}
+          weight={scale.weight}
+          elapsed={elapsed}
+          trace={trace}
+        />
+      ) : snapshot && !resting ? (
+        <div className="resting">
+          <h2 className="resting__headline">{tab}</h2>
+          <p className="resting__note">Not built yet. Brew is the only working tab.</p>
+        </div>
+      ) : (
         <RestingView
           connected={!!snapshot}
-          lastShotAt={
-            latestShot?.timestamp
-              ? new Date(latestShot.timestamp).toLocaleString()
-              : null
-          }
+          lastShotAt={null}
         />
-      ) : (
-        <ShotView snapshot={snapshot} weight={scale.weight} elapsed={elapsed} />
       )}
+
+      <nav className="tabs">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            className={`tab ${t === tab ? "tab--active" : ""}`}
+            onClick={() => setTab(t)}
+          >
+            {t}
+          </button>
+        ))}
+        <span className="tabs__spacer" />
+        <span className="tab" style={{ cursor: "default" }}>
+          {socket === "open" ? "connected" : "offline"}
+        </span>
+      </nav>
     </div>
   );
 }
