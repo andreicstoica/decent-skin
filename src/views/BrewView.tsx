@@ -145,14 +145,20 @@ export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trac
             value={weight === null ? "—" : weight.toFixed(1)}
             color="hsl(var(--ch-weight))"
           />
+
+          <div className="read__minors">
+            <Read minor label="Pressure bar" value={snapshot.pressure.toFixed(1)} color="hsl(var(--ch-pressure))" />
+            <Read minor label="Flow mL/s" value={snapshot.flow.toFixed(1)} color="hsl(var(--ch-flow))" />
+            <Read
+              minor
+              label="Weight g/s"
+              value={(weightFlow ?? 0).toFixed(1)}
+              color="hsl(var(--ch-weight))"
+            />
+          </div>
         </div>
 
-        <ShotChart
-          trace={trace}
-          pressure={snapshot.pressure}
-          flow={snapshot.flow}
-          weightFlow={weightFlow}
-        />
+        <ShotChart trace={trace} />
       </div>
 
       <div className="rail">

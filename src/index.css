@@ -28,6 +28,7 @@
 
   /* Key light from above. Information surfaces stay flat; only controls are
      machined, so a raised face reads as "this is a thing you can press". */
+  --veil: rgba(0, 0, 0, 0.035);
   --face:
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 10px),
     linear-gradient(0deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0) 10px);
@@ -58,6 +59,7 @@
     --ch-flow: 213 88% 62%;
     --ch-weight: 44 95% 56%;
     --ch-target: 30 6% 38%;
+    --veil: rgba(255, 255, 255, 0.045);
     --face:
       linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 10px),
       linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 10px);
@@ -84,6 +86,7 @@
   --ch-flow: 213 88% 62%;
   --ch-weight: 44 95% 56%;
   --ch-target: 30 6% 38%;
+  --veil: rgba(255, 255, 255, 0.045);
   --face:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 10px),
     linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 10px);
@@ -202,7 +205,7 @@ body {
   cursor: pointer;
   transition: box-shadow 90ms ease-out, transform 90ms ease-out;
 }
-.step:active { box-shadow: var(--press); transform: translateY(1px); }
+.step:active { box-shadow: var(--press); transform: translateY(1px); background-image: linear-gradient(var(--veil), var(--veil)), var(--face); }
 .step[disabled] { color: hsl(var(--rule)); cursor: default; box-shadow: none; background-image: none; }
 
 /* ---- readout band ---- */
@@ -210,15 +213,15 @@ body {
 .read { display: flex; align-items: baseline; gap: 32px; padding: var(--band) var(--gutter); border-bottom: var(--rule-w) solid hsl(var(--rule)); }
 .read__cell { display: flex; flex-direction: column; gap: 8px; }
 .read__v { font-size: 52px; font-weight: 700; line-height: 0.9; }
+.read__cell--minor { gap: 4px; }
 .read__cell--minor .read__v { font-size: 24px; font-weight: 600; }
 
 /* ---- chart ---- */
 
 .chartwrap { flex: 1; min-height: 120px; display: flex; flex-direction: column; padding: 8px var(--gutter); }
 .chart__svg { flex: 1; width: 100%; min-height: 0; display: block; }
-.live { display: flex; justify-content: flex-end; gap: 24px; padding-bottom: 8px; }
-.live__i { display: flex; align-items: baseline; gap: 8px; }
-.live__v { font-size: 20px; font-weight: 700; }
+/* Diagnostics ride the same line as the clock and the cup, pushed right. */
+.read__minors { display: flex; align-items: baseline; gap: 24px; margin-left: auto; }
 
 /* ---- mode rail: hard blocks, active one filled ---- */
 
@@ -260,7 +263,7 @@ body {
   box-shadow: none;
   border-top: 2px solid hsl(var(--rule));
 }
-.mode--power:active { transform: none; box-shadow: none; background-color: hsl(var(--faint)); }
+.mode--power:active { transform: none; box-shadow: var(--press); background-image: linear-gradient(var(--veil), var(--veil)); }
 .mode[disabled] { color: hsl(var(--rule)); cursor: default; box-shadow: none; background-image: none; }
 .mode:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: -4px; }
 
@@ -287,9 +290,12 @@ body {
 .tab:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: -4px; }
 
 @media (hover: hover) {
-  .tab:hover:not(.tab--on) { color: hsl(var(--fg)); }
-  .mode:hover:not(.mode--on):not([disabled]) { background: hsl(var(--faint)); }
-  .step:hover:not([disabled]) { background: hsl(var(--faint)); }
+  .tab:hover:not(.tab--on) { color: hsl(var(--fg)); background: var(--veil); }
+  .mode:hover:not(.mode--on):not([disabled]),
+  .step:hover:not([disabled]) {
+    background-image: linear-gradient(var(--veil), var(--veil)), var(--face);
+  }
+  .mode--power:hover:not([disabled]) { background-image: linear-gradient(var(--veil), var(--veil)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -405,4 +411,4 @@ body {
 .pick__meta { flex: none; white-space: nowrap; }
 .pick__on { flex: none; color: hsl(var(--accent)); }
 
-@media (hover: hover) { .pick:hover { background: hsl(var(--faint)); } }
+@media (hover: hover) { .pick:hover { background: var(--veil); } }

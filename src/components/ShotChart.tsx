@@ -39,17 +39,7 @@ function ticks(span: number) {
   return out;
 }
 
-export function ShotChart({
-  trace,
-  pressure,
-  flow,
-  weightFlow,
-}: {
-  trace: TracePoint[];
-  pressure: number;
-  flow: number;
-  weightFlow: number | null;
-}) {
+export function ShotChart({ trace }: { trace: TracePoint[] }) {
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
 
   const last = trace.length ? trace[trace.length - 1].t : 0;
@@ -65,16 +55,6 @@ export function ShotChart({
 
   return (
     <div className="chartwrap">
-      <div className="live">
-        {SERIES.filter((x) => !x.dash).map((x) => (
-          <span className="live__i" key={x.key}>
-            <span className="lbl">{x.label}</span>
-            <span className="num live__v" style={{ color: x.color }}>
-              {(x.key === "pressure" ? pressure : x.key === "flow" ? flow : (weightFlow ?? 0)).toFixed(1)}
-            </span>
-          </span>
-        ))}
-      </div>
       <div ref={ref} style={{ flex: 1, minHeight: 0 }}>
         {width > 0 && (
           <svg className="chart__svg" width={width} height={height} role="img" aria-label="Live shot trace">
