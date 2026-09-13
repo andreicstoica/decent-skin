@@ -12,19 +12,24 @@ export function useMachineSnapshot() {
 // on a `disconnected` status permanently stops weight frames.
 export function useScale() {
   const [weight, setWeight] = useState<number | null>(null);
+  const [weightFlow, setWeightFlow] = useState<number | null>(null);
   const [battery, setBattery] = useState<number | null>(null);
   const [connected, setConnected] = useState(false);
 
   const socket = useJsonSocket<ScaleFrame>("/scale/snapshot", (frame) => {
     if (isScaleStatus(frame)) {
       setConnected(frame.status === "connected");
-      if (frame.status === "disconnected") setWeight(null);
+      if (frame.status === "disconnected") {
+        setWeight(null);
+        setWeightFlow(null);
+      }
       return;
     }
     setConnected(true);
     setWeight(frame.weight);
-    setBattery(frame.batteryLevel);
+    setWeightFlow(frame.weightFlow);
+    setBattery(frame.battery);
   });
 
-  return { weight, battery, connected, socket };
+  return { weight, weightFlow, battery, connected, socket };
 }

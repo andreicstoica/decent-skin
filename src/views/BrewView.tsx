@@ -2,7 +2,7 @@ import { restUrl } from "../api/gateway";
 import { ShotChart } from "../components/ShotChart";
 import type { TracePoint } from "../api/useShotTrace";
 import type { MachineSnapshot, MachineState, MachineSubstate } from "../api/types";
-import type { Workflow } from "../api/useWorkflow";
+import { useBeanBatch, useGrinder, useSetGrindSetting, type Workflow } from "../api/useWorkflow";
 
 const SUBSTATE_LABELS: Partial<Record<MachineSubstate, string>> = {
   idle: "–",
@@ -21,12 +21,64 @@ const MODES: { label: string; state: MachineState }[] = [
   { label: "Flush", state: "flush" },
 ];
 
+function daysAgo(iso: string) {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (!Number.isFinite(days) || days < 0) return "recently";
+  return days === 0 ? "today" : `${days}d ago`;
+}
+
 interface BrewViewProps {
   snapshot: MachineSnapshot;
   workflow: Workflow | null | undefined;
   weight: number | null;
   elapsed: number;
   trace: TracePoint[];
+}
+
+function GrindCard({
+  model,
+  setting,
+  grinderId,
+}: {
+  model?: string;
+  setting?: string;
+  grinderId?: string;
+}) {
+  const setGrind = useSetGrindSetting();
+  const { data: grinder } = useGrinder(grinderId);
+  const numeric = setting === undefined ? NaN : Number.parseFloat(setting);
+  const steppable = Number.isFinite(numeric);
+  // The grinder defines its own dial increment; 0.1 is only a fallback.
+  const increment = grinder?.settingSmallStep ?? 0.1;
+  const decimals = increment < 1 ? 1 : 0;
+
+  const step = (direction: number) =>
+    setGrind.mutate((numeric + direction * increment).toFixed(decimals));
+
+  return (
+    <div className="card grind">
+      <span className="label">Grind{model ? ` · ${model}` : ""}</span>
+      <span className="num grind__value">{setting ?? "–"}</span>
+      <div className="grind__stepper">
+        <button
+          className="btn btn--outline grind__step"
+          onClick={() => step(-1)}
+          disabled={!steppable || setGrind.isPending}
+          aria-label="Grind finer"
+        >
+          finer
+        </button>
+        <button
+          className="btn btn--outline grind__step"
+          onClick={() => step(1)}
+          disabled={!steppable || setGrind.isPending}
+          aria-label="Grind coarser"
+        >
+          coarser
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Metric({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -40,6 +92,7 @@ function Metric({ label, value, color }: { label: string; value: string; color?:
 
 export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewViewProps) {
   const ctx = workflow?.context;
+  const { data: batch } = useBeanBatch(ctx?.beanBatchId);
   const busy = snapshot.state.state !== "idle";
 
   const setState = (state: MachineState) => {
@@ -60,16 +113,13 @@ export function BrewView({ snapshot, workflow, weight, elapsed, trace }: BrewVie
               {ctx?.coffeeRoaster ?? "Set one under Beans & grind"}
               {dose && yieldTarget ? ` · ${dose.toFixed(1)} g › ${yieldTarget.toFixed(0)} g` : ""}
             </span>
-            <span className="bean__meta">{workflow?.profile?.title ?? workflow?.name ?? ""}</span>
+            <span className="bean__meta">
+              {workflow?.profile?.title ?? workflow?.name ?? "No profile"}
+              {batch?.roastDate ? ` · roasted ${daysAgo(batch.roastDate)}` : ""}
+            </span>
           </div>
 
-          <div className="card grind">
-            <span className="label">
-              Grind{ctx?.grinderModel ? ` · ${ctx.grinderModel}` : ""}
-            </span>
-            <span className="num grind__value">{ctx?.grinderSetting ?? "–"}</span>
-            <span className="bean__meta">finer ‹ › coarser</span>
-          </div>
+          <GrindCard model={ctx?.grinderModel} setting={ctx?.grinderSetting} grinderId={ctx?.grinderId} />
         </div>
 
         <div className="metrics">

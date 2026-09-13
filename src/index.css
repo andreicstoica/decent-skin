@@ -6,7 +6,7 @@
  * color-mix (111) are out.
  */
 :root {
-  --background: 0 0% 100%;
+  --background: 60 9% 97.5%;
   --foreground: 20 14.3% 4.1%;
   --card: 0 0% 100%;
   --card-foreground: 20 14.3% 4.1%;
@@ -28,6 +28,16 @@
   --chart-target: 25 5.3% 55%;
 
   --radius: 0.5rem;
+  --border-hairline: 1px;
+
+  --elevation-raised:
+    0 0 0 1px rgb(0 0 0 / 0.05),
+    0 1px 3px rgb(0 0 0 / 0.05),
+    0 4px 10px -4px rgb(0 0 0 / 0.06);
+}
+
+@media only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (min-resolution: 192dpi) {
+  :root { --border-hairline: 0.5px; }
 }
 
 /* Auto by default; data-theme on <html> overrides in either direction. */
@@ -50,6 +60,7 @@
     --ring: 20.5 90.2% 48.2%;
     --chart-weight: 43 74% 66%;
     --chart-target: 24 5.4% 45%;
+    --elevation-raised: 0 0 0 1px rgb(255 255 255 / 0.09);
   }
 }
 
@@ -71,6 +82,7 @@
   --ring: 20.5 90.2% 48.2%;
   --chart-weight: 43 74% 66%;
   --chart-target: 24 5.4% 45%;
+  --elevation-raised: 0 0 0 1px rgb(255 255 255 / 0.09);
 }
 
 * { box-sizing: border-box; }
@@ -107,8 +119,8 @@ body {
 .card {
   background: hsl(var(--card));
   color: hsl(var(--card-foreground));
-  border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
+  box-shadow: var(--elevation-raised);
 }
 
 .btn {
@@ -121,9 +133,9 @@ body {
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 160ms ease-out;
 }
-.btn:active { transform: scale(0.98); }
+.btn:active { transform: scale(0.97); }
 .btn:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 .btn[disabled] { opacity: 1; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); cursor: default; }
 
@@ -132,8 +144,16 @@ body {
 .btn--outline { background: transparent; border-color: hsl(var(--border)); color: hsl(var(--foreground)); }
 .btn--ghost { background: transparent; color: hsl(var(--muted-foreground)); }
 
+@media (hover: hover) {
+  .btn--primary:hover { background: hsl(var(--primary) / 0.9); }
+  .btn--secondary:hover { background: hsl(var(--accent)); }
+  .btn--outline:hover { background: hsl(var(--accent)); }
+  .btn--ghost:hover { color: hsl(var(--foreground)); background: hsl(var(--accent)); }
+  .tab:hover { color: hsl(var(--foreground)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .btn { transition: none; }
+  .btn, .tab { transition: none; }
   .btn:active { transform: none; }
 }
 
@@ -186,7 +206,7 @@ body {
 
 /* ---- tabs ---- */
 
-.tabs { display: flex; gap: 4px; border-top: 1px solid hsl(var(--border)); padding-top: 10px; }
+.tabs { display: flex; gap: 4px; border-top: var(--border-hairline) solid hsl(var(--border)); padding-top: 10px; }
 .tab {
   font: inherit;
   font-weight: 500;
@@ -197,6 +217,7 @@ body {
   padding: 8px 12px;
   min-height: 40px;
   cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
 }
 .tab--active { color: hsl(var(--primary)); background: hsl(var(--accent)); }
 .tab:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
@@ -216,4 +237,12 @@ body {
   .rail .btn { min-height: 52px; }
   .metrics { gap: 16px; flex-wrap: wrap; }
   .bean__name { font-size: 17px; }
+}
+
+.grind__stepper { display: flex; gap: 6px; padding-top: 4px; }
+.grind__step {
+  flex: 1;
+  min-height: 34px;
+  font-size: 11px;
+  border-radius: calc(var(--radius) - 2px);
 }

@@ -25,7 +25,13 @@ export interface MachineSnapshot {
 
 export type ScaleFrame =
   | { status: "connected" | "disconnected" }
-  | { timestamp: string; weight: number; batteryLevel: number };
+  | {
+      timestamp: string;
+      weight: number;
+      weightFlow: number;
+      battery: number;
+      timerValue: number | null;
+    };
 
 export const isScaleStatus = (f: ScaleFrame): f is { status: "connected" | "disconnected" } =>
   "status" in f;

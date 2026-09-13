@@ -20,7 +20,7 @@ export default function App() {
   const water = useWaterLevel();
   const { data: workflow } = useWorkflow();
   const { elapsed } = useShotTimer(snapshot);
-  const { trace } = useShotTrace(snapshot, scale.weight);
+  const { trace } = useShotTrace(snapshot, scale.weightFlow);
 
   const state = snapshot?.state.state;
   const resting = !!state && RESTING.has(state);
@@ -32,7 +32,13 @@ export default function App() {
       <header className="topbar">
         <span className="brand">Crema</span>
         <span className="topbar__meta">
-          {water ? `water ${water.currentLevel} mL` : socket === "open" ? "" : "gateway offline"}
+          {water
+            ? `water ${water.currentLevel.toFixed(0)}${
+                water.currentLevel <= water.refillLevel ? " · refill" : ""
+              }`
+            : socket === "open"
+              ? ""
+              : "gateway offline"}
         </span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span className="topbar__meta">

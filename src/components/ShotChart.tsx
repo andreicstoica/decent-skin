@@ -9,7 +9,8 @@ const SERIES = [
   { key: "pressure", label: "pressure · bar", color: "hsl(var(--chart-pressure))", dash: false },
   { key: "flow", label: "flow · mL/s", color: "hsl(var(--chart-flow))", dash: false },
   { key: "weightFlow", label: "weight · g/s", color: "hsl(var(--chart-weight))", dash: false },
-  { key: "targetPressure", label: "profile target", color: "hsl(var(--chart-target))", dash: true },
+  { key: "targetPressure", label: "target pressure", color: "hsl(var(--chart-target))", dash: true },
+  { key: "targetFlow", label: "target flow", color: "hsl(var(--chart-target))", dash: true },
 ] as const;
 
 /** Rendered at true pixel size so strokes and labels are never scaled unevenly. */
