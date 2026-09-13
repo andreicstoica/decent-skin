@@ -1,0 +1,257 @@
+/*
+ * Authored against a Chrome 74 baseline for the Decent tablet's Android System
+ * WebView. That rules out flex `gap` (84), clamp() (79), oklch/color-mix (111),
+ * :has(), nesting and container queries. Grid gap (66) and custom properties
+ * (49) are safe and carry the layout.
+ */
+:root {
+  /* Warm near-black: the screen is wall-mounted and lit for hours. */
+  --bg: #12100e;
+  --surface: #1c1917;
+  --raised: #262220;
+  /* Dark mode wants solid borders; alpha whites glow against a dark ground. */
+  --border: #332e2a;
+
+  --text: #f5f1ec;
+  --text-dim: #a29a93;
+  --text-faint: #6b635c;
+
+  /* DE1 app channel conventions, so the colours transfer from the stock UI. */
+  --pressure: #3fbf6f;
+  --flow: #3f9fe0;
+  --temp: #e0693f;
+  --weight: #e8c04a;
+
+  --t-hero: 92px;
+  --t-xl: 46px;
+  --t-lg: 26px;
+  --t-body: 16px;
+  --t-label: 13px;
+
+  --step: 8px;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* A machine-side display is a control surface, not a document. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* Every live number shares one width per digit, or the layout twitches at 10Hz. */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.label {
+  font-size: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+  line-height: 1;
+}
+
+.screen {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: calc(var(--step) * 3);
+  grid-row-gap: calc(var(--step) * 3);
+}
+
+/* ---- status bar ---- */
+
+.statusbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.statusbar__state {
+  font-size: var(--t-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chips {
+  display: grid;
+  grid-auto-flow: column;
+  grid-column-gap: calc(var(--step) * 2);
+  align-items: center;
+}
+
+.chip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-column-gap: var(--step);
+  align-items: center;
+  font-size: var(--t-label);
+  color: var(--text-dim);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.dot--live { background: var(--pressure); }
+.dot--warn { background: var(--temp); }
+
+/* ---- shot view ---- */
+
+.shot {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  grid-row-gap: calc(var(--step) * 3);
+  min-height: 0;
+}
+
+.primary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column-gap: calc(var(--step) * 3);
+  align-content: center;
+}
+
+.primary__cell {
+  display: grid;
+  grid-row-gap: var(--step);
+  justify-items: center;
+  align-content: center;
+}
+
+.primary__value {
+  font-size: var(--t-hero);
+  font-weight: 600;
+}
+
+.secondary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-column-gap: calc(var(--step) * 2);
+}
+
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  /* Inner radius steps down from the tile's own padding. */
+  border-radius: 10px;
+  padding: calc(var(--step) * 2);
+  display: grid;
+  grid-row-gap: var(--step);
+}
+
+.metric__value {
+  font-size: var(--t-xl);
+  font-weight: 600;
+}
+
+.metric__target {
+  font-size: var(--t-label);
+  color: var(--text-faint);
+  min-height: 1em;
+}
+
+/* The bar is the only thing on screen that reads at a glance from a metre. */
+.bar {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.bar__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: 2px;
+  /* No transition: the source is already a 10Hz sample. Smoothing it would
+     render a value the machine never reported. */
+}
+
+/* ---- resting view ---- */
+
+.resting {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  grid-row-gap: calc(var(--step) * 3);
+  text-align: center;
+}
+
+.resting__headline {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.resting__note {
+  color: var(--text-dim);
+  margin: 0;
+  max-width: 42ch;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--text);
+  border: 0;
+  border-radius: 10px;
+  /* 44px enhanced target, and this gets pressed with wet hands. */
+  min-height: 56px;
+  padding: 0 calc(var(--step) * 4);
+  cursor: pointer;
+  transition: transform 150ms ease-out, background-color 150ms ease-out;
+}
+
+.button:active { transform: scale(0.97); }
+
+.button:focus-visible {
+  outline: 2px solid var(--flow);
+  outline-offset: 2px;
+}
+
+.button[disabled] {
+  background: var(--raised);
+  color: var(--text-faint);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+  .button:active { transform: none; }
+}
+
+/* Content-driven, not device-driven: the four-across metric row is what breaks. */
+@media (max-width: 720px) {
+  :root {
+    --t-hero: 56px;
+    --t-xl: 30px;
+    --t-lg: 20px;
+  }
+  .secondary { grid-template-columns: repeat(2, 1fr); grid-row-gap: calc(var(--step) * 2); }
+}
