@@ -406,6 +406,7 @@ body {
   cursor: pointer;
 }
 .pick { padding-left: 8px; box-shadow: inset 3px 0 0 transparent; }
+.pick__shape svg { border-bottom: var(--rule-w) solid hsl(var(--rule)); }
 .pick--on { background: hsl(var(--faint)); box-shadow: inset 3px 0 0 hsl(var(--accent)); }
 .pick:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: -2px; }
 .pick__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -415,8 +416,39 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.pick__meta { flex: none; white-space: nowrap; width: 96px; text-align: right; }
-.pick__on { flex: none; width: 24px; color: hsl(var(--accent)); }
+.pick__n { flex: none; width: 68px; text-align: right; white-space: nowrap; }
+.pick__shape { flex: none; width: 132px; display: flex; justify-content: flex-end; gap: 12px; }
+.pick__on { flex: none; width: 28px; color: hsl(var(--accent)); }
+
+/* The list header holds the column labels and the colour key once, rather than
+   repeating a legend on every row. */
+.picks__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: hsl(var(--bg));
+  padding-bottom: 8px;
+  border-bottom: 2px solid hsl(var(--rule));
+}
+.picks__cols { display: flex; align-items: center; gap: 20px; padding: 12px 8px 0; }
+.picks__cols .pick__shape { justify-content: flex-end; }
+.key { display: inline-flex; align-items: center; gap: 5px; }
+.key i { width: 12px; height: 3px; display: block; }
+
+/* Groups get their own band so a long list reads as sections, not one run. */
+.groupbar {
+  position: sticky;
+  top: 74px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  margin-top: 16px;
+  background: hsl(var(--faint));
+  border-bottom: var(--rule-w) solid hsl(var(--rule));
+}
+.groupbar__n { color: hsl(var(--muted)); }
 
 @media (hover: hover) { .pick:hover { background: var(--veil); } }
 

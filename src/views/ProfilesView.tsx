@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useProfiles, useSelectProfile, type ProfileRecord } from "../api/useProfiles";
 import { useWorkflow } from "../api/useWorkflow";
 import { ProfileSpark } from "../components/ProfileSpark";
-import { styleOf, styleRank } from "../api/profileStyle";
+import { factsOf, styleOf, styleRank } from "../api/profileStyle";
 
 /** Bundled titles namespace themselves with a slash: "Tea portafilter/oolong". */
 const shortName = (title: string) => title.slice(title.indexOf("/") + 1);
@@ -31,13 +31,26 @@ export function ProfilesView() {
 
   return (
     <div className="panel">
-      <input
-        className="search"
+      <div className="picks__head">
+        <input
+          className="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={`Search ${profiles?.length ?? 0} profiles`}
-        aria-label="Search profiles"
-      />
+          aria-label="Search profiles"
+        />
+        <div className="picks__cols">
+          <span className="lbl pick__main">Profile</span>
+          <span className="lbl pick__n">Peak bar</span>
+          <span className="lbl pick__n">Max time</span>
+          <span className="lbl pick__n">Out</span>
+          <span className="lbl pick__shape">
+            <span className="key"><i style={{ background: "hsl(var(--ch-pressure))" }} />pressure</span>
+            <span className="key"><i style={{ background: "hsl(var(--ch-flow))" }} />flow</span>
+          </span>
+          <span className="pick__on" />
+        </div>
+      </div>
 
       {groups.length === 0 && (
         <div className="empty">
@@ -47,11 +60,15 @@ export function ProfilesView() {
       )}
 
       {groups.map(([group, entries]) => (
-        <section key={group} style={{ paddingTop: 20 }}>
-          <div className="lbl" style={{ paddingBottom: 8 }}>{group}</div>
+        <section key={group}>
+          <div className="groupbar">
+            <span className="lbl">{group}</span>
+            <span className="lbl groupbar__n num">{entries.length}</span>
+          </div>
           <div className="rows">
             {entries.map(({ record, name }) => {
               const on = record.profile.title === current;
+              const facts = factsOf(record);
               return (
                 <button
                   key={record.id}
@@ -65,11 +82,16 @@ export function ProfilesView() {
                       <span className="row__sub pick__notes">{record.profile.notes}</span>
                     )}
                   </span>
-                  <span className="row__sub num pick__meta">
-                    {record.profile.steps?.length ?? 0} steps
-                    {record.profile.target_weight ? ` · ${record.profile.target_weight} g` : ""}
+                  <span className="num pick__n">
+                    {facts.peakBar === null ? "—" : facts.peakBar.toFixed(1)}
                   </span>
-                  <ProfileSpark steps={record.profile.steps ?? []} />
+                  <span className="num pick__n">{facts.seconds ? `${facts.seconds}s` : "—"}</span>
+                  <span className="num pick__n">
+                    {facts.outGrams === null ? "—" : `${facts.outGrams}g`}
+                  </span>
+                  <span className="pick__shape">
+                    <ProfileSpark steps={record.profile.steps ?? []} />
+                  </span>
                   <span className="pick__on">{on ? <span className="lbl">On</span> : null}</span>
                 </button>
               );

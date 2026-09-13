@@ -46,3 +46,23 @@ export const styleRank = (name: string) => {
   const at = ORDER.indexOf(name);
   return at === -1 ? ORDER.length : at;
 };
+
+export interface ProfileFacts {
+  peakBar: number | null;
+  seconds: number;
+  outGrams: number | null;
+}
+
+/** Step count is an implementation detail; peak pressure, duration and target
+ *  weight are what a person compares on. `seconds` is a ceiling, not a typical
+ *  shot length: steps exit early on their pressure, flow or weight conditions. */
+export function factsOf(record: ProfileRecord): ProfileFacts {
+  const p = record.profile;
+  const steps = (p.steps ?? []).filter((s) => (s.seconds ?? 0) > 0);
+  const pressures = steps.filter((s) => s.pump === "pressure").map((s) => s.pressure ?? 0);
+  return {
+    peakBar: pressures.length ? Math.max(...pressures) : null,
+    seconds: steps.reduce((sum, s) => sum + (s.seconds ?? 0), 0),
+    outGrams: p.target_weight || null,
+  };
+}
