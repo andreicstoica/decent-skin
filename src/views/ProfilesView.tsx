@@ -2,14 +2,10 @@ import { useMemo, useState } from "react";
 import { useProfiles, useSelectProfile, type ProfileRecord } from "../api/useProfiles";
 import { useWorkflow } from "../api/useWorkflow";
 import { ProfileSpark } from "../components/ProfileSpark";
+import { styleOf, styleRank } from "../api/profileStyle";
 
 /** Bundled titles namespace themselves with a slash: "Tea portafilter/oolong". */
-function split(title: string) {
-  const at = title.indexOf("/");
-  return at === -1
-    ? { group: "Espresso", name: title }
-    : { group: title.slice(0, at), name: title.slice(at + 1) };
-}
+const shortName = (title: string) => title.slice(title.indexOf("/") + 1);
 
 export function ProfilesView() {
   const { data: profiles, isLoading } = useProfiles();
@@ -23,14 +19,12 @@ export function ProfilesView() {
     const needle = query.trim().toLowerCase();
     const map = new Map<string, { record: ProfileRecord; name: string }[]>();
     for (const record of profiles ?? []) {
-      const { group, name } = split(record.profile.title);
       if (needle && !record.profile.title.toLowerCase().includes(needle)) continue;
+      const group = styleOf(record);
       if (!map.has(group)) map.set(group, []);
-      map.get(group)!.push({ record, name });
+      map.get(group)!.push({ record, name: shortName(record.profile.title) });
     }
-    return [...map.entries()].sort(([a], [b]) =>
-      a === "Espresso" ? -1 : b === "Espresso" ? 1 : a.localeCompare(b),
-    );
+    return [...map.entries()].sort(([a], [b]) => styleRank(a) - styleRank(b));
   }, [profiles, query]);
 
   if (isLoading) return <div className="panel" />;

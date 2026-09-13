@@ -5,8 +5,8 @@ export interface Step {
   pressure?: number;
 }
 
-const W = 104;
-const H = 30;
+const W = 132;
+const H = 44;
 const Y_MAX = 12;
 
 /**
@@ -43,7 +43,7 @@ export function ProfileSpark({ steps }: { steps: Step[] }) {
           <line
             x1={s.x0} x2={s.x1} y1={s.y} y2={s.y}
             stroke={s.pressure ? "hsl(var(--ch-pressure))" : "hsl(var(--ch-flow))"}
-            strokeWidth={2} strokeLinecap="square"
+            strokeWidth={2.5} strokeLinecap="square"
           />
         </g>
       ))}
