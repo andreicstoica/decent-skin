@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useProfiles, useSelectProfile, type ProfileRecord } from "../api/useProfiles";
 import { useWorkflow } from "../api/useWorkflow";
+import { ProfileSpark } from "../components/ProfileSpark";
 
 /** Bundled titles namespace themselves with a slash: "Tea portafilter/oolong". */
 function split(title: string) {
@@ -74,7 +75,8 @@ export function ProfilesView() {
                     {record.profile.steps?.length ?? 0} steps
                     {record.profile.target_weight ? ` · ${record.profile.target_weight} g` : ""}
                   </span>
-                  {on && <span className="lbl pick__on">On</span>}
+                  <ProfileSpark steps={record.profile.steps ?? []} />
+                  <span className="pick__on">{on ? <span className="lbl">On</span> : null}</span>
                 </button>
               );
             })}

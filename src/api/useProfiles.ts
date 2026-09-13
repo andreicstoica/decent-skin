@@ -10,7 +10,7 @@ export interface ProfileRecord {
     notes?: string;
     beverage_type?: string;
     target_weight?: number;
-    steps?: unknown[];
+    steps?: import("../components/ProfileSpark").Step[];
   };
 }
 

@@ -6,11 +6,12 @@ const Y_MAX = 12;
 const MIN_WINDOW = 10;
 const PAD = { top: 8, right: 8, bottom: 18, left: 24 };
 
+/** Each target is the dashed, dimmed form of its own channel. A shared grey made
+ *  the two indistinguishable, which is why one of them was dropped. */
 const SERIES = [
-  { key: "pressure", label: "pressure bar", color: "hsl(var(--ch-pressure))", dash: false },
-  { key: "flow", label: "flow mL/s", color: "hsl(var(--ch-flow))", dash: false },
-  { key: "weightFlow", label: "weight g/s", color: "hsl(var(--ch-weight))", dash: false },
-  { key: "targetPressure", label: "target", color: "hsl(var(--ch-target))", dash: true },
+  { key: "pressure", target: "targetPressure", color: "hsl(var(--ch-pressure))" },
+  { key: "flow", target: "targetFlow", color: "hsl(var(--ch-flow))" },
+  { key: "weightFlow", target: null, color: "hsl(var(--ch-weight))" },
 ] as const;
 
 /** Rendered at true pixel size so strokes and labels are never scaled unevenly. */
@@ -50,11 +51,11 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
   const x = (t: number) => PAD.left + (t / span) * plotW;
   const y = (v: number) => PAD.top + plotH - (Math.min(v, Y_MAX) / Y_MAX) * plotH;
 
-  const path = (key: (typeof SERIES)[number]["key"]) =>
+  const path = (key: keyof TracePoint) =>
     trace.map((p, i) => `${i === 0 ? "M" : "L"}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join("");
 
   return (
-    <div className="chartwrap">
+    <div className="chartwrap chartwrap--flush">
       <div ref={ref} style={{ flex: 1, minHeight: 0 }}>
         {width > 0 && (
           <svg className="chart__svg" width={width} height={height} role="img" aria-label="Live shot trace">
@@ -80,15 +81,26 @@ export function ShotChart({ trace }: { trace: TracePoint[] }) {
                 {t}
               </text>
             ))}
-            {trace.length > 1 &&
-              SERIES.map((s) => (
-                <path
-                  key={s.key} d={path(s.key)} fill="none" stroke={s.color}
-                  strokeWidth={s.dash ? 1.5 : 2}
-                  strokeDasharray={s.dash ? "4 4" : undefined}
-                  strokeLinejoin="round" strokeLinecap="round"
-                />
-              ))}
+            {trace.length > 1 && (
+              <>
+                {SERIES.map(
+                  (s) =>
+                    s.target && (
+                      <path
+                        key={s.target} d={path(s.target)} fill="none" stroke={s.color}
+                        strokeOpacity={0.45} strokeWidth={1.5} strokeDasharray="5 4"
+                        strokeLinejoin="round" strokeLinecap="round"
+                      />
+                    ),
+                )}
+                {SERIES.map((s) => (
+                  <path
+                    key={s.key} d={path(s.key)} fill="none" stroke={s.color}
+                    strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
+                  />
+                ))}
+              </>
+            )}
           </svg>
         )}
       </div>

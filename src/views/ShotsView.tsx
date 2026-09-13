@@ -1,8 +1,19 @@
+import { useState } from "react";
 import { useShots } from "../api/useShots";
+import { ShotDetailView } from "./ShotDetailView";
+
+const WHEN: Intl.DateTimeFormatOptions = {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+};
 
 export function ShotsView() {
   const { data: shots, isLoading } = useShots();
+  const [open, setOpen] = useState<string | null>(null);
 
+  if (open) return <ShotDetailView id={open} onBack={() => setOpen(null)} />;
   if (isLoading) return <div className="panel" />;
 
   if (!shots?.length) {
@@ -22,36 +33,39 @@ export function ShotsView() {
   return (
     <div className="panel">
       <div className="rows">
+        <div className="shot shot--head">
+          <span className="lbl shot__when">When</span>
+          <span className="lbl shot__main">Coffee</span>
+          <span className="lbl shot__n">Dose</span>
+          <span className="lbl shot__n">Yield</span>
+          <span className="lbl shot__n">Grind</span>
+          <span className="lbl shot__n">Rating</span>
+        </div>
         {shots.map((shot) => {
           const ctx = shot.workflow?.context;
-          const yieldOut = shot.annotations?.actualYield;
+          const a = shot.annotations;
           return (
-            <div className="row" key={shot.id}>
-              <span className="lbl" style={{ width: 108, flex: "none" }}>
-                {new Date(shot.timestamp).toLocaleString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+            <button className="shot" key={shot.id} onClick={() => setOpen(shot.id)}>
+              <span className="row__sub shot__when">
+                {new Date(shot.timestamp).toLocaleString(undefined, WHEN)}
               </span>
-              <div className="row__main">
-                <div className="row__title">{ctx?.coffeeName ?? "Unlabelled shot"}</div>
-                {shot.annotations?.espressoNotes && (
-                  <div className="row__sub">{shot.annotations.espressoNotes}</div>
+              <span className="shot__main">
+                <span className="row__title">{ctx?.coffeeName ?? "Unlabelled"}</span>
+                {shot.workflow?.profile?.title && (
+                  <span className="row__sub shot__profile">{shot.workflow.profile.title}</span>
                 )}
-              </div>
-              <span className="num row__sub">
-                {ctx?.targetDoseWeight ? `${ctx.targetDoseWeight.toFixed(1)} g` : "—"}
-                {yieldOut ? ` → ${yieldOut.toFixed(1)} g` : ""}
               </span>
-              <span className="num row__sub" style={{ width: 46, textAlign: "right" }}>
-                {ctx?.grinderSetting ?? "—"}
+              <span className="num shot__n">
+                {(a?.actualDoseWeight ?? ctx?.targetDoseWeight)?.toFixed(1) ?? "—"}
               </span>
-              <span className="num row__sub" style={{ width: 34, textAlign: "right" }}>
-                {shot.annotations?.enjoyment ? shot.annotations.enjoyment.toFixed(1) : "—"}
+              <span className="num shot__n">
+                {(a?.actualYield ?? ctx?.targetYield)?.toFixed(1) ?? "—"}
               </span>
-            </div>
+              <span className="num shot__n">{ctx?.grinderSetting ?? "—"}</span>
+              <span className="num shot__n shot__rating">
+                {a?.enjoyment ? a.enjoyment.toFixed(0) : "—"}
+              </span>
+            </button>
           );
         })}
       </div>

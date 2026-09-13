@@ -1,11 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
+
+export interface ShotContext {
+  coffeeName?: string;
+  coffeeRoaster?: string;
+  grinderModel?: string;
+  grinderSetting?: string;
+  targetDoseWeight?: number;
+  targetYield?: number;
+}
 
 export interface ShotSummary {
   id: string;
   timestamp: string;
-  workflow?: { context?: { coffeeName?: string; grinderSetting?: string; targetDoseWeight?: number } };
-  annotations?: { actualYield?: number; enjoyment?: number; espressoNotes?: string };
+  workflow?: { profile?: { title?: string }; context?: ShotContext };
+  annotations?: {
+    actualDoseWeight?: number;
+    actualYield?: number;
+    drinkTds?: number;
+    drinkEy?: number;
+    enjoyment?: number;
+    espressoNotes?: string;
+  };
 }
 
 export function useShots(limit = 40) {
@@ -18,5 +34,53 @@ export function useShots(limit = 40) {
       return body.items ?? [];
     },
     refetchInterval: 30_000,
+  });
+}
+
+export interface Measurement {
+  machine?: { timestamp: string; flow?: number; pressure?: number; targetPressure?: number; targetFlow?: number };
+  scale?: { weight?: number; weightFlow?: number };
+}
+
+export interface ShotDetail extends ShotSummary {
+  measurements?: Measurement[];
+  stopReason?: string;
+}
+
+export function useShot(id: string | null) {
+  return useQuery({
+    queryKey: ["shot", id],
+    queryFn: async (): Promise<ShotDetail | null> => {
+      const res = await fetch(restUrl(`/shots/${id}`));
+      return res.ok ? ((await res.json()) as ShotDetail) : null;
+    },
+    enabled: !!id,
+  });
+}
+
+export interface Annotations {
+  actualDoseWeight?: number;
+  actualYield?: number;
+  drinkTds?: number;
+  drinkEy?: number;
+  enjoyment?: number;
+  espressoNotes?: string;
+}
+
+export function useAnnotate(id: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (annotations: Annotations) => {
+      const res = await fetch(restUrl(`/shots/${id}`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ annotations }),
+      });
+      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
+    },
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["shot", id] });
+      client.invalidateQueries({ queryKey: ["shots"] });
+    },
   });
 }

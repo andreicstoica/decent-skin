@@ -74,6 +74,7 @@ export default function App() {
           weightFlow={scale.weightFlow}
           elapsed={elapsed}
           trace={trace}
+          onSettings={() => setTab("Settings")}
         />
       ) : tab === "Shots" ? (
         <ShotsView />

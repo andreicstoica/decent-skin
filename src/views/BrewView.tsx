@@ -1,5 +1,6 @@
 import { restUrl } from "../api/gateway";
 import { ShotChart } from "../components/ShotChart";
+import { MoonIcon, SlidersIcon } from "../components/icons";
 import { useBeanBatch, useGrinder, useSetGrindSetting, type Workflow } from "../api/useWorkflow";
 import type { TracePoint } from "../api/useShotTrace";
 import { STATE_LABEL, WORKING, type MachineSnapshot, type MachineState, type MachineSubstate } from "../api/types";
@@ -19,12 +20,11 @@ const PHASE: Partial<Record<MachineSubstate, string>> = {
   cleaningSteam: "Cleaning",
 };
 
-const MODES: { label: string; state: MachineState; power?: true }[] = [
+const MODES: { label: string; state: MachineState }[] = [
   { label: "Espresso", state: "espresso" },
   { label: "Steam", state: "steam" },
   { label: "Water", state: "hotWater" },
   { label: "Flush", state: "flush" },
-  { label: "Sleep", state: "sleeping", power: true },
 ];
 
 function daysAgo(iso: string) {
@@ -97,9 +97,10 @@ interface BrewViewProps {
   weightFlow: number | null;
   elapsed: number;
   trace: TracePoint[];
+  onSettings: () => void;
 }
 
-export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trace }: BrewViewProps) {
+export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trace, onSettings }: BrewViewProps) {
   const ctx = workflow?.context;
   const { data: batch } = useBeanBatch(ctx?.beanBatchId);
   const roast = batch?.roastDate ? daysAgo(batch.roastDate) : null;
@@ -167,10 +168,9 @@ export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trac
           return (
             <button
               key={mode.state}
-              className={`mode ${on ? "mode--on" : ""} ${mode.power ? "mode--power" : ""}`}
+              className={`mode ${on ? "mode--on" : ""}`}
               onClick={() => (on ? run("idle") : run(mode.state))}
-              // You must be able to send a heating machine to sleep.
-              disabled={!mode.power && busy && !on}
+              disabled={busy && !on}
             >
               {on && mode.state === "flush" && flushLeft > 0 ? (
                 <span className="mode__count">{Math.ceil(flushLeft)}</span>
@@ -182,6 +182,17 @@ export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trac
             </button>
           );
         })}
+
+        <div className="utils">
+          {/* Sleep stays reachable while the machine is heating: that is exactly
+              when you have walked away from it. */}
+          <button className="util" onClick={() => run("sleeping")} title="Sleep" aria-label="Sleep">
+            <MoonIcon />
+          </button>
+          <button className="util" onClick={onSettings} title="Settings" aria-label="Settings">
+            <SlidersIcon />
+          </button>
+        </div>
       </div>
     </div>
   );
