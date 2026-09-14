@@ -60,6 +60,9 @@ export function useShot(id: string | null) {
 }
 
 export interface Annotations {
+  /** Fixed-vocabulary taste chips. Kept structured so the values stay
+   *  comparable across shots; free text lives in espressoNotes. */
+  extras?: Record<string, string>;
   actualDoseWeight?: number;
   actualYield?: number;
   drinkTds?: number;

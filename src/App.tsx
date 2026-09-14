@@ -3,6 +3,7 @@ import { restUrl } from "./api/gateway";
 import { useMachineSnapshot, useScale } from "./api/useTelemetry";
 import { useShotTimer } from "./api/useShotTimer";
 import { useShotTrace } from "./api/useShotTrace";
+import { useShotFinished } from "./api/useShotFinished";
 import { useWater } from "./api/useWater";
 import { useWorkflow } from "./api/useWorkflow";
 import { useSettings } from "./api/useSettings";
@@ -12,6 +13,7 @@ import { BrewView } from "./views/BrewView";
 import { ShotsView } from "./views/ShotsView";
 import { SettingsView } from "./views/SettingsView";
 import { ProfilesView } from "./views/ProfilesView";
+import { RateShotView } from "./views/RateShotView";
 import type { MachineState } from "./api/types";
 
 const TABS = ["Brew", "Shots", "Beans", "Profiles", "Settings"] as const;
@@ -39,6 +41,7 @@ export default function App() {
   const { data: workflow } = useWorkflow();
   const { elapsed } = useShotTimer(snapshot);
   const { trace } = useShotTrace(snapshot, scale.weightFlow);
+  const { finishedId, dismiss } = useShotFinished(snapshot);
 
   const state = snapshot?.state.state;
   const resting = !!state && RESTING.has(state);
@@ -48,7 +51,9 @@ export default function App() {
   return (
     <div className="app">
 
-      {!snapshot ? (
+      {finishedId ? (
+        <RateShotView id={finishedId} onDone={dismiss} />
+      ) : !snapshot ? (
         <div className="panel">
           <div className="empty">
             <h2 className="empty__h">Waiting for the machine</h2>
