@@ -1,6 +1,7 @@
 import { restUrl } from "../api/gateway";
 import { ShotChart } from "../components/ShotChart";
 import { MoonIcon, SlidersIcon } from "../components/icons";
+import { StateDots } from "../components/StateDots";
 import { useBeanBatch, useGrinder, useSetGrindSetting, type Workflow } from "../api/useWorkflow";
 import type { TracePoint } from "../api/useShotTrace";
 import { STATE_LABEL, WORKING, type MachineSnapshot, type MachineState, type MachineSubstate } from "../api/types";
@@ -118,10 +119,14 @@ export function BrewView({ snapshot, workflow, weight, weightFlow, elapsed, trac
       <div className="main">
         <div className="ident">
           <div className="ident__line">
+            <StateDots snapshot={snapshot} />
             <span
               className={`state ${WORKING.has(snapshot.state.state) ? "state--busy" : ""}`}
             >
               {STATE_LABEL[snapshot.state.state]}
+              {WORKING.has(snapshot.state.state) && (
+                <span className="state__t num"> {snapshot.mixTemperature.toFixed(0)}°</span>
+              )}
             </span>
             <h1 className="ident__name">{ctx?.coffeeName ?? "No bean selected"}</h1>
             {[ctx?.coffeeRoaster, roast, workflow?.profile?.title]

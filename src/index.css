@@ -110,13 +110,14 @@ body {
 
 .app { height: 100%; display: flex; flex-direction: column; }
 
+.state__t { color: hsl(var(--muted)); }
 .state {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   flex: none;
-  margin-right: 8px;
+  margin-right: 4px;
 }
 .state--busy { color: hsl(var(--accent)); }
 
@@ -549,4 +550,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .chip { transition: none; }
   .chip:active { transform: none; }
+}
+
+/* ---- machine state gauge ---- */
+
+.dots { display: inline-flex; gap: 3px; align-items: center; flex: none; }
+.dots__c {
+  width: 6px;
+  height: 14px;
+  display: block;
+  background: hsl(var(--rule));
+}
+.dots__c--on { background: hsl(var(--fg)); }
+.dots__c--warm.dots__c--on { background: hsl(var(--accent)); }
+.dots__c--edge { animation: dotPulse 900ms ease-in-out infinite; }
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots__c--edge { animation: none; }
 }
