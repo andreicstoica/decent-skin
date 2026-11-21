@@ -1,26 +1,49 @@
-import { useEffect, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { stopLabel, useAnnotate, useShot, type Annotations } from "../api/useShots";
+import { useBeans } from "../api/useBeans";
+import { ENJOYMENT, TASTE, fromDecaidEnjoyment, toDecaidEnjoyment } from "../api/tasteVocab";
 import { ShotChart } from "../components/ShotChart";
 import type { TracePoint } from "../api/useShotTrace";
+import { EXTRACTING } from "../api/types";
 
-const SCORES = [1, 2, 3, 4, 5];
+type Shot = NonNullable<ReturnType<typeof useShot>["data"]>;
 
-function toTrace(measurements: NonNullable<ReturnType<typeof useShot>["data"]>["measurements"]): TracePoint[] {
+function toTrace(measurements: Shot["measurements"]): TracePoint[] {
   if (!measurements?.length) return [];
-  const t0 = new Date(measurements[0].machine?.timestamp ?? 0).getTime();
-  return measurements.flatMap((m) => {
-    if (!m.machine?.timestamp) return [];
+  const available = measurements.filter((m) => Number.isFinite(Date.parse(m.machine?.timestamp ?? "")));
+  const extracting = available.filter((m) => EXTRACTING.has(m.machine?.state?.substate ?? ""));
+  const samples = extracting.length > 1 ? extracting : available;
+  const t0 = Date.parse(samples[0]?.machine?.timestamp ?? "");
+  return samples.flatMap(({ machine, scale }) => {
+    if (!machine) return [];
     return [
       {
-        t: (new Date(m.machine.timestamp).getTime() - t0) / 1000,
-        pressure: m.machine.pressure ?? 0,
-        flow: m.machine.flow ?? 0,
-        weightFlow: m.scale?.weightFlow ?? 0,
-        targetPressure: m.machine.targetPressure ?? 0,
-        targetFlow: m.machine.targetFlow ?? 0,
+        t: (Date.parse(machine.timestamp) - t0) / 1000,
+        pressure: machine.pressure,
+        flow: machine.flow,
+        weightFlow: scale?.weightFlow,
+        targetPressure: machine.targetPressure,
+        targetFlow: machine.targetFlow,
+        profileFrame: machine.profileFrame,
       },
     ];
   });
+}
+
+/** Known taste keys first, in vocabulary order; anything else Decaid stored after. */
+function tasteOf(extras: Annotations["extras"]) {
+  if (!extras) return [];
+  const label = (key: string) => TASTE.find((g) => g.key === key)?.label ?? key;
+  const rank = (key: string) => {
+    const i = TASTE.findIndex((g) => g.key === key);
+    return i === -1 ? TASTE.length : i;
+  };
+  return Object.entries(extras)
+    .filter((entry): entry is [string, string | number] =>
+      typeof entry[1] === "string" ? entry[1].trim() !== "" : typeof entry[1] === "number",
+    )
+    .sort(([a], [b]) => rank(a) - rank(b))
+    .map(([key, value]) => ({ key, label: label(key), value: String(value) }));
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -32,31 +55,65 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
+const MEASURES = [
+  ["actualDoseWeight", "Dose in", "g"],
+  ["actualYield", "Yield out", "g"],
+  ["drinkTds", "TDS", "%"],
+  ["drinkEy", "Extraction yield", "%"],
+] as const;
+
 export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void }) {
   const { data: shot } = useShot(id);
-  const annotate = useAnnotate(id);
-  const [draft, setDraft] = useState<Annotations>({});
-
-  useEffect(() => setDraft(shot?.annotations ?? {}), [shot?.id, shot?.annotations]);
 
   if (!shot) return <div className="panel" />;
 
+  // A fresh editor per saved state: the draft starts from what Decaid holds and
+  // resets after a save lands. The panel stays outside the key so the scroll
+  // position survives the save.
+  return (
+    <div className="panel">
+      <ShotEditor key={`${shot.id}:${JSON.stringify(shot.annotations ?? {})}`} shot={shot} onBack={onBack} />
+    </div>
+  );
+}
+
+function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
+  const annotate = useAnnotate(shot.id);
+  const { data: beans } = useBeans();
+  const [draft, setDraft] = useState<Annotations>(shot.annotations ?? {});
+  const uid = useId();
+
   const ctx = shot.workflow?.context;
+  const batchId = ctx?.beanBatchId;
+  const liveBean = useMemo(() => {
+    if (!batchId || !beans) return undefined;
+    return beans.find(({ batches }) => batches.some((b) => b.id === batchId))?.bean;
+  }, [batchId, beans]);
+  const coffeeName = liveBean?.name ?? ctx?.coffeeName;
+  const coffeeRoaster = liveBean?.roaster ?? ctx?.coffeeRoaster;
   const trace = toTrace(shot.measurements);
+  const taste = tasteOf(shot.annotations?.extras);
   const dirty = JSON.stringify(draft) !== JSON.stringify(shot.annotations ?? {});
   const set = (patch: Annotations) => setDraft({ ...draft, ...patch });
-  const num = (v?: number) => (v === undefined || Number.isNaN(v) ? "" : String(v));
+  const num = (v?: number | null) => (v === undefined || v === null || Number.isNaN(v) ? "" : String(v));
+  const stars = fromDecaidEnjoyment(draft.enjoyment);
 
   return (
-    <div className="panel detail">
-      <div className="detail__top">
-        <button className="btn btn--quiet" onClick={onBack}>Back</button>
-        <span className="row__sub">{new Date(shot.timestamp).toLocaleString()}</span>
-      </div>
-
-      <h2 className="detail__h">{ctx?.coffeeName ?? "Unlabelled shot"}</h2>
+    <div className="sheet detail">
+      <header className="detail__head">
+        <button type="button" className="btn detail__back" onClick={onBack}>
+          <span aria-hidden="true">‹</span> All shots
+        </button>
+        <h2 className="detail__h">{coffeeName ?? "Unlabelled shot"}</h2>
+        <time className="row__sub num" dateTime={shot.timestamp}>
+          {new Date(shot.timestamp).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </time>
+      </header>
       <div className="facts">
-        <Fact label="Roaster" value={ctx?.coffeeRoaster ?? "—"} />
+        <Fact label="Roaster" value={coffeeRoaster ?? "—"} />
         <Fact label="Profile" value={shot.workflow?.profile?.title ?? "—"} />
         <Fact label="Grind" value={ctx?.grinderSetting ?? "—"} />
         <Fact label="Grinder" value={ctx?.grinderModel ?? "—"} />
@@ -73,78 +130,106 @@ export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void 
 
       {trace.length > 1 && (
         <div className="detail__chart">
-          <ShotChart trace={trace} />
+          <ShotChart trace={trace} label="Shot trace" />
         </div>
       )}
 
-      <div className="lbl detail__section">How was it?</div>
-
-      <div className="field">
-        <div className="row__title">Enjoyment</div>
-        <div style={{ display: "flex" }}>
-          {SCORES.map((n) => (
-            <button
-              key={n}
-              className={`btn ${draft.enjoyment === n ? "" : "btn--quiet"}`}
-              style={{ minHeight: 40, padding: "0 16px" }}
-              onClick={() => set({ enjoyment: draft.enjoyment === n ? undefined : n })}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {(
-        [
-          ["actualDoseWeight", "Dose in", "g"],
-          ["actualYield", "Yield out", "g"],
-          ["drinkTds", "TDS", "%"],
-          ["drinkEy", "Extraction yield", "%"],
-        ] as const
-      ).map(([key, label, unit]) => (
-        <div className="field" key={key}>
-          <div className="row__title">
-            {label} <span className="row__sub">{unit}</span>
+      {taste.length > 0 && (
+        <>
+          <div className="lbl detail__section">Taste</div>
+          <div className="taste">
+            {taste.map((t) => (
+              <span className="taste__i" key={t.key}>
+                <span className="lbl">{t.label}</span>
+                <span className="taste__v">{t.value}</span>
+              </span>
+            ))}
           </div>
-          <input
-            className="field__in num"
-            type="number"
-            step="0.1"
-            value={num(draft[key])}
-            onChange={(e) =>
-              set({ [key]: e.target.value === "" ? undefined : Number.parseFloat(e.target.value) })
-            }
-          />
-        </div>
-      ))}
-
-      <div className="field field--stack">
-        <div className="row__title">Notes</div>
-        <textarea
-          className="notes"
-          rows={3}
-          value={draft.espressoNotes ?? ""}
-          placeholder="What did it taste like?"
-          onChange={(e) => set({ espressoNotes: e.target.value || undefined })}
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: 12, paddingTop: 20 }}>
-        <button className="btn" onClick={() => annotate.mutate(draft)} disabled={!dirty || annotate.isPending}>
-          {annotate.isPending ? "Saving" : "Save rating"}
-        </button>
-        {dirty && (
-          <button className="btn btn--quiet" onClick={() => setDraft(shot.annotations ?? {})}>
-            Discard
-          </button>
-        )}
-      </div>
-      {annotate.isError && (
-        <p className="row__sub" style={{ color: "hsl(var(--danger))", paddingTop: 12 }}>
-          Could not save. Check that Decaid is reachable.
-        </p>
+        </>
       )}
+
+      <section className="detail__rating" aria-labelledby={`${uid}-rating`}>
+        <h3 className="lbl detail__section" id={`${uid}-rating`}>How was it?</h3>
+
+        <div className="detail__rating-grid">
+          <div>
+            <div className="field field--stack">
+              <div className="field__label">
+                <span className="row__title" id={`${uid}-enjoy`}>Enjoyment</span>
+              </div>
+              <div className="seg detail__scale" role="group" aria-labelledby={`${uid}-enjoy`}>
+                {ENJOYMENT.map((n) => (
+                  <button
+                    type="button"
+                    key={n}
+                    className={`seg__b num ${stars === n ? "seg__b--on" : ""}`}
+                    aria-pressed={stars === n}
+                    onClick={() => set({ enjoyment: stars === n ? null : toDecaidEnjoyment(n) })}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="field field--stack">
+              <div className="field__label">
+                <label className="row__title" htmlFor={`${uid}-notes`}>Notes</label>
+              </div>
+              <textarea
+                id={`${uid}-notes`}
+                className="notes"
+                rows={3}
+                value={draft.espressoNotes ?? ""}
+                placeholder="What did it taste like?"
+                onChange={(e) => set({ espressoNotes: e.target.value || null })}
+              />
+            </div>
+          </div>
+          <div className="detail__measurements">
+            {MEASURES.map(([key, label, unit]) => (
+              <div className="field" key={key}>
+                <div className="field__label">
+                  <label className="row__title" htmlFor={`${uid}-${key}`}>
+                    {label}
+                    <span className="field__unit">{unit}</span>
+                  </label>
+                </div>
+                <input
+                  id={`${uid}-${key}`}
+                  className="field__in num"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={num(draft[key])}
+                  onChange={(e) =>
+                    set({ [key]: e.target.value === "" ? null : Number.parseFloat(e.target.value) })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => annotate.mutate(draft)}
+            disabled={!dirty || annotate.isPending}
+          >
+            {annotate.isPending ? "Saving…" : "Save rating"}
+          </button>
+          {dirty && (
+            <button type="button" className="btn btn--quiet" onClick={() => setDraft(shot.annotations ?? {})}>
+              Discard
+            </button>
+          )}
+        </div>
+        {annotate.isError && (
+          <p className="err" role="alert">Could not save. Check that Decaid is reachable.</p>
+        )}
+      </section>
     </div>
   );
 }

@@ -28,7 +28,7 @@ export function useScale() {
     setConnected(true);
     setWeight(frame.weight);
     setWeightFlow(frame.weightFlow);
-    setBattery(frame.battery);
+    setBattery(frame.battery ?? null);
   });
 
   return { weight, weightFlow, battery, connected, socket };

@@ -66,3 +66,6 @@ export function factsOf(record: ProfileRecord): ProfileFacts {
     outGrams: p.target_weight || null,
   };
 }
+
+/** Bundled titles namespace themselves with a slash: "Tea portafilter/oolong". */
+export const shortName = (title: string) => title.slice(title.indexOf("/") + 1);

@@ -1,27 +1,27 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { EXTRACTING, type MachineSnapshot } from "./types";
 
 export interface TracePoint {
   t: number;
-  pressure: number;
-  flow: number;
-  weightFlow: number;
-  targetPressure: number;
-  targetFlow: number;
+  pressure?: number | null;
+  flow?: number | null;
+  weightFlow?: number | null;
+  targetPressure?: number | null;
+  targetFlow?: number | null;
+  profileFrame?: number;
 }
 
 /**
- * Samples accumulate in a ref inside an effect, not during render: the snapshot
- * already re-renders the tree at 10Hz, and appending during render duplicates
- * every point under StrictMode's double invocation.
+ * Sample in an effect and publish the latest point without waiting for the
+ * next snapshot to trigger a render.
  */
 export function useShotTrace(snapshot: MachineSnapshot | null, weightFlow: number | null) {
-  const trace = useRef<TracePoint[]>([]);
+  const [trace, setTrace] = useState<TracePoint[]>([]);
   const startedAt = useRef<number | null>(null);
-  const latestFlow = useRef(weightFlow);
-  latestFlow.current = weightFlow;
+  const lastAt = useRef(-Infinity);
+  const getWeightFlow = useEffectEvent(() => weightFlow);
 
-  const extracting = !!snapshot && EXTRACTING.has(snapshot.state.substate);
+  const extracting = snapshot?.state.state === "espresso" && EXTRACTING.has(snapshot.state.substate);
 
   useEffect(() => {
     if (!extracting) {
@@ -30,28 +30,23 @@ export function useShotTrace(snapshot: MachineSnapshot | null, weightFlow: numbe
     }
     if (!snapshot) return;
 
-    const now = Date.now();
-    if (startedAt.current === null) {
-      startedAt.current = now;
-      trace.current = [];
-    }
-    const t = (now - startedAt.current) / 1000;
-
-    const last = trace.current[trace.current.length - 1];
-    if (!last || t - last.t >= 0.09) {
-      trace.current = [
-        ...trace.current,
-        {
-          t,
-          pressure: snapshot.pressure,
-          flow: snapshot.flow,
-          weightFlow: latestFlow.current ?? 0,
-          targetPressure: snapshot.targetPressure,
-          targetFlow: snapshot.targetFlow,
-        },
-      ];
-    }
+    const now = performance.now();
+    const first = startedAt.current === null;
+    if (!first && now - lastAt.current < 90) return;
+    const start = startedAt.current ?? now;
+    startedAt.current = start;
+    lastAt.current = now;
+    const point: TracePoint = {
+      t: (now - start) / 1000,
+      pressure: snapshot.pressure,
+      flow: snapshot.flow,
+      weightFlow: getWeightFlow(),
+      targetPressure: snapshot.targetPressure,
+      targetFlow: snapshot.targetFlow,
+      profileFrame: snapshot.profileFrame,
+    };
+    setTrace((previous) => first ? [point] : [...previous, point]);
   }, [snapshot, extracting]);
 
-  return { trace: trace.current, extracting };
+  return { trace: snapshot?.state.substate === "preparingForShot" ? [] : trace, extracting };
 }

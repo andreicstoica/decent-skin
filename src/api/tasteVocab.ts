@@ -17,4 +17,11 @@ export const TASTE: TasteGroup[] = [
   { key: "flowLooked", label: "Flow looked", options: ["Even", "Spritzy", "Gushed", "Choked"] },
 ];
 
-export const ENJOYMENT = [1, 2, 3, 4, 5];
+/**
+ * Native 0–10 enjoyment scale, matching Decaid's canonical `annotations.enjoyment`.
+ */
+export const ENJOYMENT = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+export const toDecaidEnjoyment = (score: number) => Math.max(0, Math.min(10, Math.round(score)));
+export const fromDecaidEnjoyment = (score?: number | null) =>
+  score === undefined || score === null ? undefined : Math.max(0, Math.min(10, Math.round(score)));

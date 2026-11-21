@@ -36,10 +36,15 @@ export function useSelectProfile() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (record: ProfileRecord) => {
+      const targetWeight = record.profile.target_weight;
+      const body: Record<string, unknown> = { profile: record.profile };
+      if (typeof targetWeight === "number" && Number.isFinite(targetWeight) && targetWeight > 0) {
+        body.context = { targetYield: targetWeight };
+      }
       const res = await fetch(restUrl("/workflow"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile: record.profile }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
     },

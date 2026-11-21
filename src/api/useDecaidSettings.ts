@@ -6,7 +6,14 @@ export interface DecaidSettings {
   themeMode: "system" | "light" | "dark";
   keepAwake: boolean;
   blockOnNoScale: boolean;
+  blockTareDuringShot?: boolean;
   stopHotWaterAtWeight: boolean;
+  scalePowerMode?: "disabled" | "displayOff" | "disconnect";
+  weightFlowMultiplier?: number;
+  volumeFlowMultiplier?: number;
+  hotWaterFlowMultiplier?: number;
+  chargingMode?: "disabled" | "longevity" | "balanced" | "highAvailability";
+  lowBatteryBrightnessLimit?: boolean;
   nightModeEnabled: boolean;
   automaticUpdateCheck: boolean;
 }
@@ -20,23 +27,36 @@ export interface MachineSettings {
   hotWaterFlow: number;
   steamFlow: number;
   tankTemp: number;
+  steamPurgeMode?: number;
 }
 
-function resource<T>(key: string, path: string) {
+export interface MachineSettingsPatch {
+  fan?: number;
+  usb?: "enable" | "disable";
+  flushTemp?: number;
+  flushTimeout?: number;
+  flushFlow?: number;
+  hotWaterFlow?: number;
+  steamFlow?: number;
+  tankTemp?: number;
+  steamPurgeMode?: number;
+}
+
+function resource<TRead, TWrite = Partial<TRead>>(key: string, path: string) {
   const url = restUrl(path);
   return {
     useRead: () =>
       useQuery({
         queryKey: [key],
-        queryFn: async (): Promise<T | null> => {
+        queryFn: async (): Promise<TRead | null> => {
           const res = await fetch(url);
-          return res.ok ? ((await res.json()) as T) : null;
+          return res.ok ? ((await res.json()) as TRead) : null;
         },
       }),
     useWrite: () => {
       const client = useQueryClient();
       return useMutation({
-        mutationFn: async (patch: Partial<T>) => {
+        mutationFn: async (patch: TWrite) => {
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -51,7 +71,7 @@ function resource<T>(key: string, path: string) {
 }
 
 const decaid = resource<DecaidSettings>("decaid-settings", "/settings");
-const machine = resource<MachineSettings>("machine-settings", "/machine/settings");
+const machine = resource<MachineSettings, MachineSettingsPatch>("machine-settings", "/machine/settings");
 
 export const useDecaidSettings = decaid.useRead;
 export const useSaveDecaidSettings = decaid.useWrite;

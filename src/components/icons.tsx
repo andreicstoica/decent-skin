@@ -25,3 +25,10 @@ export const SlidersIcon = () => (
     <circle cx="8" cy="17" r="2.1" />
   </svg>
 );
+
+/** Pinned favorites. Filled when pinned so state reads without color alone. */
+export const StarIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg {...base} width={18} height={18} fill={filled ? "currentColor" : "none"}>
+    <path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" />
+  </svg>
+);

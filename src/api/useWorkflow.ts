@@ -4,18 +4,56 @@ import { restUrl } from "./gateway";
 export interface WorkflowContext {
   targetDoseWeight?: number;
   targetYield?: number;
+  targetWaterVolume?: number | null;
   grinderModel?: string;
+  grinderBurrs?: string | null;
   grinderSetting?: string;
+  grinderRpm?: number | null;
   coffeeName?: string;
   coffeeRoaster?: string;
   grinderId?: string;
   beanBatchId?: string;
+  finalBeverageType?: string;
+  baristaName?: string;
+  drinkerName?: string;
+  extras?: Record<string, unknown>;
+}
+
+export interface SteamSettings {
+  targetTemperature?: number;
+  duration?: number;
+  flow?: number;
+}
+
+export interface HotWaterData {
+  targetTemperature?: number;
+  duration?: number;
+  volume?: number;
+  flow?: number;
+}
+
+export interface RinseData {
+  targetTemperature?: number;
+  duration?: number;
+  flow?: number;
 }
 
 export interface Workflow {
+  id?: string;
   name?: string;
+  description?: string;
   profile?: { title?: string };
   context?: WorkflowContext;
+  steamSettings?: SteamSettings;
+  hotWaterData?: HotWaterData;
+  rinseData?: RinseData;
+}
+
+export interface WorkflowPatch {
+  context?: Partial<Omit<WorkflowContext, "targetYield">> & { targetYield?: number | null };
+  steamSettings?: Partial<SteamSettings>;
+  hotWaterData?: Partial<HotWaterData>;
+  rinseData?: Partial<RinseData>;
 }
 
 export function useWorkflow() {
@@ -29,20 +67,34 @@ export function useWorkflow() {
   });
 }
 
-/** Partial update: Decaid merges what you send and re-uploads to the machine. */
-export function useSetGrindSetting() {
+/**
+ * Partial update: Decaid merges what you send and re-uploads to the machine.
+ * Note: Decaid rejects `targetYield: null` on PUT (use `0` to disable SAW).
+ */
+export function useUpdateWorkflow() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (grinderSetting: string) => {
+    mutationFn: async (patch: WorkflowPatch) => {
+      const body = patch.context?.targetYield === null
+        ? { ...patch, context: { ...patch.context, targetYield: 0 } }
+        : patch;
       const res = await fetch(restUrl("/workflow"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context: { grinderSetting } }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ["workflow"] }),
   });
+}
+
+export function useSetGrindSetting() {
+  const update = useUpdateWorkflow();
+  return {
+    ...update,
+    mutate: (grinderSetting: string) => update.mutate({ context: { grinderSetting } }),
+  };
 }
 
 export interface Grinder {
