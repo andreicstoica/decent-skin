@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
+import { writeWorkflow } from "./useWorkflow";
 
 export interface Bean {
   id: string;
@@ -32,6 +33,7 @@ export interface BeanBatchRecord {
 export interface BeanWithBatches {
   bean: Bean;
   batches: BeanBatchRecord[];
+  batchesUnavailable?: true;
 }
 
 export function useBeans() {
@@ -39,17 +41,17 @@ export function useBeans() {
     queryKey: ["beans"],
     queryFn: async (): Promise<BeanWithBatches[]> => {
       const res = await fetch(restUrl("/beans?includeArchived=false"));
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
       const beans = (await res.json()) as Bean[];
       const withBatches = await Promise.all(
         beans.map(async (bean) => {
-          try {
-            const bRes = await fetch(restUrl(`/beans/${bean.id}/batches?includeArchived=false`));
-            const batches = bRes.ok ? ((await bRes.json()) as BeanBatchRecord[]) : [];
-            return { bean, batches };
-          } catch {
-            return { bean, batches: [] };
-          }
+          const batches = await fetch(restUrl(`/beans/${bean.id}/batches?includeArchived=false`))
+            .then(async (response): Promise<BeanBatchRecord[]> => {
+              if (!response.ok) throw new Error(`Gateway returned ${response.status}`);
+              return response.json();
+            })
+            .catch(() => null);
+          return batches ? { bean, batches } : { bean, batches: [], batchesUnavailable: true as const };
         }),
       );
       return withBatches;
@@ -58,7 +60,7 @@ export function useBeans() {
   });
 }
 
-export interface NewBagInput {
+interface NewBeanInput {
   roaster: string;
   name: string;
   country?: string;
@@ -67,12 +69,7 @@ export interface NewBagInput {
   processing?: string;
   variety?: string[];
   decaf?: boolean;
-  frozen?: boolean;
-  roastDate?: string;
-  roastLevel?: string;
-  weight?: number;
   notes?: string;
-  selectNow?: boolean;
 }
 
 export type BeanPatch = Partial<Omit<Bean, "id" | "createdAt" | "updatedAt">>;
@@ -95,14 +92,10 @@ async function createBatch(beanId: string, batch: BatchPatch): Promise<BeanBatch
   return (await res.json()) as BeanBatchRecord;
 }
 
-/**
- * Creates a Bean + initial BeanBatch in Decaid, and optionally loads it into
- * the current workflow so the next shot is tagged automatically.
- */
-export function useAddBag() {
+export function useAddBean() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: NewBagInput) => {
+    mutationFn: async (input: NewBeanInput) => {
       const beanRes = await fetch(restUrl("/beans"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,44 +112,9 @@ export function useAddBag() {
         }),
       });
       if (!beanRes.ok) throw new Error(`Create bean failed (${beanRes.status})`);
-      const bean = (await beanRes.json()) as Bean;
-
-      const batchBody: BatchPatch = {};
-      if (input.roastDate) {
-        batchBody.roastDate = new Date(`${input.roastDate}T00:00:00Z`).toISOString();
-      }
-      if (input.roastLevel?.trim()) {
-        batchBody.roastLevel = input.roastLevel.trim();
-      }
-      if (input.weight && Number.isFinite(input.weight)) {
-        batchBody.weight = input.weight;
-      }
-      if (input.frozen) {
-        batchBody.frozen = true;
-      }
-
-      const batch = await createBatch(bean.id, batchBody);
-
-      if (input.selectNow !== false) {
-        await fetch(restUrl("/workflow"), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            context: {
-              beanBatchId: batch.id,
-              coffeeName: bean.name,
-              coffeeRoaster: bean.roaster,
-            },
-          }),
-        });
-      }
-
-      return { bean, batch };
+      return (await beanRes.json()) as Bean;
     },
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ["beans"] });
-      client.invalidateQueries({ queryKey: ["workflow"] });
-    },
+    onSettled: () => client.invalidateQueries({ queryKey: ["beans"] }),
   });
 }
 
@@ -164,33 +122,20 @@ export function useSelectBean() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async ({ bean, batch }: { bean: Bean; batch?: BeanBatchRecord }) => {
-      let activeBatch = batch;
-      if (!activeBatch) {
-        const res = await fetch(restUrl(`/beans/${bean.id}/batches`), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        if (res.ok) activeBatch = (await res.json()) as BeanBatchRecord;
-      }
-
-      const res = await fetch(restUrl("/workflow"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const activeBatch = batch ?? await createBatch(bean.id, {});
+      try {
+        await writeWorkflow({
           context: {
-            beanBatchId: activeBatch?.id,
+            beanBatchId: activeBatch.id,
             coffeeName: bean.name,
             coffeeRoaster: bean.roaster,
           },
-        }),
-      });
-      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
+        });
+      } finally {
+        if (!batch) await client.invalidateQueries({ queryKey: ["beans"] });
+      }
     },
-    onSuccess: () => {
-      client.invalidateQueries({ queryKey: ["workflow"] });
-      client.invalidateQueries({ queryKey: ["beans"] });
-    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ["workflow"] }),
   });
 }
 

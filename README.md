@@ -1,32 +1,31 @@
-# React + TypeScript + Vite
+# Decent Skin
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A custom skin for the Decent Espresso machine, built on [Decaid](https://github.com/decentespresso/decaid). It includes live shot traces, shot history and ratings, a bean library, and profile favorites.
 
-Currently, two official plugins are available:
+## Install on your tablet
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Open **Decaid → Launcher → Skins → ⚙ → Install skin → GitHub Release**.
+2. Enter `andreicstoica/decent-skin`. If prompted for an asset name, enter `decent-skin.zip`.
+3. To update later, use **Skins → ⚙ → Check for updates** or enable automatic updates in Decaid.
 
-## React Compiler
+For offline installation, download `decent-skin.zip` from [Releases](https://github.com/andreicstoica/decent-skin/releases), copy it to the tablet, and choose **Install skin → ZIP file**. No extraction is needed.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This skin uses Decaid's shared profile library. Profiles already in Decaid are available without reimporting. For profiles from the classic DE1 app, use **Decaid → Data → Import from de1app** first.
 
-## Expanding the Oxlint configuration
+## Develop locally
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm ci
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The skin connects to Decaid on port `8080` of the same host. For a development gateway on another host, copy `.env.example` to `.env.local` and set `VITE_GATEWAY_URL`. Leave that override unset when building for distribution.
+
+## Build an installable release
+
+```sh
+npm run build
+(cd dist && zip -r ../decent-skin.zip .)
+```
+
+Attach the ZIP to a new GitHub release, keeping `decent-skin.zip` as the asset name across releases. Update `public/manifest.json` to match the release version.

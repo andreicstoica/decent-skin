@@ -91,7 +91,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
   }, [batchId, beans]);
   const coffeeName = liveBean?.name ?? ctx?.coffeeName;
   const coffeeRoaster = liveBean?.roaster ?? ctx?.coffeeRoaster;
-  const trace = toTrace(shot.measurements);
+  const trace = useMemo(() => toTrace(shot.measurements), [shot.measurements]);
   const taste = tasteOf(shot.annotations?.extras);
   const dirty = JSON.stringify(draft) !== JSON.stringify(shot.annotations ?? {});
   const set = (patch: Annotations) => setDraft({ ...draft, ...patch });

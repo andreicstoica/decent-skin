@@ -4,6 +4,7 @@ import { useUpdateWorkflow, useWorkflow } from "../api/useWorkflow";
 import { NumberStepper } from "./Stepper";
 import {
   FLUSH_RANGE,
+  matchesSteamPreset,
   STEAM_RANGE,
   steamSummary,
   useSteam,
@@ -40,7 +41,7 @@ export function PresetPicker<P extends SteamPreset>({
 }: {
   label: string;
   presets: P[];
-  activeId: string;
+  activeId?: string;
   summary: (preset: P) => string;
   disabled?: boolean;
   onSelect: (id: string) => void;
@@ -72,7 +73,7 @@ const Failed = () => (
 );
 
 export function SteamPanel() {
-  const { presets, active, heaterOn, setHeater, select, update, failed } = useSteam();
+  const { presets, active, applied, heaterOn, setHeater, select, update, failed } = useSteam();
   const heaterId = useId();
   const save = (patch: Partial<Omit<SteamPreset, "id">>, settled: () => void) =>
     update.mutate({ id: active.id, patch }, { onSettled: settled });
@@ -82,15 +83,15 @@ export function SteamPanel() {
       <PresetPicker
         label="Steam size"
         presets={presets}
-        activeId={active.id}
+        activeId={matchesSteamPreset(active, applied) ? active.id : undefined}
         summary={steamSummary}
-        disabled={!heaterOn}
+        disabled={!heaterOn || select.isPending || update.isPending}
         onSelect={(id) => select.mutate(id)}
       />
       <div className="dials drink__dials" key={active.id}>
         <NumberStepper
           label="Flow mL/s"
-          value={active.flow}
+          value={applied?.flow ?? active.flow}
           range={STEAM_RANGE.flow}
           disabled={!heaterOn}
           onCommit={(flow, settled) => save({ flow }, settled)}
@@ -98,7 +99,7 @@ export function SteamPanel() {
         <NumberStepper
           ruled
           label="Temp °C"
-          value={active.targetTemperature}
+          value={heaterOn ? applied?.targetTemperature : active.targetTemperature}
           range={STEAM_RANGE.temp}
           disabled={!heaterOn}
           onCommit={(targetTemperature, settled) => save({ targetTemperature }, settled)}
@@ -106,7 +107,7 @@ export function SteamPanel() {
         <NumberStepper
           ruled
           label="Duration s"
-          value={active.duration}
+          value={applied?.duration ?? active.duration}
           range={STEAM_RANGE.duration}
           disabled={!heaterOn}
           onCommit={(duration, settled) => save({ duration }, settled)}
@@ -125,13 +126,14 @@ export function WaterPanel() {
   const { presets, active, select, update, failed } = useWaterPresets();
   const { data: workflow } = useWorkflow();
   const updateWorkflow = useUpdateWorkflow();
-  const [custom, setCustom] = useState(false);
+  const [editingCustom, setEditingCustom] = useState(false);
 
   const hot = workflow?.hotWaterData;
-  const volume = custom ? (hot?.volume ?? active.volume) : active.volume;
-  const temp = custom ? (hot?.targetTemperature ?? active.targetTemperature) : active.targetTemperature;
-  const flow = custom ? (hot?.flow ?? active.flow) : active.flow;
-  const duration = custom ? (hot?.duration ?? active.duration) : active.duration;
+  const custom = editingCustom || !matchesSteamPreset(active, hot) || active.volume !== hot?.volume;
+  const volume = hot?.volume ?? active.volume;
+  const temp = hot?.targetTemperature ?? active.targetTemperature;
+  const flow = hot?.flow ?? active.flow;
+  const duration = hot?.duration ?? active.duration;
 
   const save = (patch: Partial<Omit<WaterPreset, "id">>, settled: () => void) => {
     if (custom) {
@@ -152,8 +154,9 @@ export function WaterPanel() {
               key={preset.id}
               className={`preset ${on ? "preset--on" : ""}`}
               aria-pressed={on}
+              disabled={select.isPending || update.isPending || updateWorkflow.isPending}
               onClick={() => {
-                setCustom(false);
+                setEditingCustom(false);
                 if (!on) select.mutate(preset.id);
               }}
             >
@@ -166,7 +169,7 @@ export function WaterPanel() {
           type="button"
           className={`preset ${custom ? "preset--on" : ""}`}
           aria-pressed={custom}
-          onClick={() => setCustom(true)}
+          onClick={() => setEditingCustom(true)}
         >
           <span className="preset__name">Custom</span>
         </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { TracePoint } from "../api/useShotTrace";
 
 const PAD = { top: 14, right: 16, bottom: 18, left: 30 };
@@ -38,7 +38,7 @@ function tickStep(span: number, count: number) {
   return ([1, 2, 5, 10].find((m) => m * decade >= raw) ?? 10) * decade;
 }
 
-export function ShotChart({ trace, label = "Live shot trace", live = false }: { trace: TracePoint[]; label?: string; live?: boolean }) {
+export const ShotChart = memo(function ShotChart({ trace, label = "Live shot trace", live = false }: { trace: TracePoint[]; label?: string; live?: boolean }) {
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
   const series = trace.length
     ? SERIES.filter((s) => trace.some((p) => finite(p[s.key]) || (s.target && finite(p[s.target]))))
@@ -143,4 +143,4 @@ export function ShotChart({ trace, label = "Live shot trace", live = false }: { 
       </div>
     </div>
   );
-}
+});

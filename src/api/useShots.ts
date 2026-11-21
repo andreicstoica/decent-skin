@@ -29,19 +29,29 @@ export interface ShotSummary {
   } | null;
 }
 
-export function useShots(limit = 40) {
-  return useQuery({
-    queryKey: ["shots", limit],
-    queryFn: async (): Promise<ShotSummary[]> => {
-      const res = await fetch(restUrl(`/shots?limit=${limit}&offset=0`));
-      if (!res.ok) return [];
-      const body = await res.json();
-      return body.items ?? [];
-    },
-    refetchInterval: 30_000,
-  });
+export const SHOT_PAGE_LIMIT = 100;
+
+export async function readShotPage(limit: number, offset: number, signal?: AbortSignal) {
+  const res = await fetch(restUrl(`/shots?limit=${limit}&offset=${offset}`), { signal });
+  if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
+  return (await res.json()) as { items: ShotSummary[]; total: number };
 }
 
+export function useShotPage(limit: number) {
+  return useQuery(shotPageOptions(limit));
+}
+
+function shotPageOptions(limit: number) {
+  return {
+    queryKey: ["shots", limit],
+    queryFn: ({ signal }: { signal: AbortSignal }) => readShotPage(limit, 0, signal),
+    refetchInterval: 30_000,
+  };
+}
+
+export function useShots(limit = 40) {
+  return useQuery({ ...shotPageOptions(limit), select: (page) => page.items });
+}
 export interface Measurement {
   machine?: { timestamp: string; flow?: number; pressure?: number; targetPressure?: number; targetFlow?: number; profileFrame?: number; state?: { substate?: string } };
   scale?: { weight?: number; weightFlow?: number };

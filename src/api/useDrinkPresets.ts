@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
-import type { WorkflowPatch } from "./useWorkflow";
+import { writeWorkflow, type WorkflowPatch } from "./useWorkflow";
 
 export interface SteamPreset {
   id: string;
@@ -105,13 +105,13 @@ function waterWorkflowPatch({ targetTemperature, volume, duration, flow }: Water
   return { hotWaterData: { targetTemperature, volume, duration, flow } };
 }
 
-async function writeJson(url: string, method: "POST" | "PUT", body: DrinkPresets | WorkflowPatch) {
-  const res = await fetch(url, {
-    method,
+async function saveDrinkPresets(presets: DrinkPresets) {
+  const res = await fetch(presetsUrl, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(presets),
   });
-  if (!res.ok) throw new Error(`${method} ${url} returned ${res.status}`);
+  if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
 }
 
 function useDrinkPresetMutation<Input>(
@@ -125,8 +125,8 @@ function useDrinkPresetMutation<Input>(
     scope: presetsScope,
     mutationFn: async (input: Input) => {
       const { presets, workflow } = update(await readDrinkPresets(), input);
-      await writeJson(presetsUrl, "POST", presets);
-      if (workflow) await writeJson(restUrl("/workflow"), "PUT", workflow);
+      if (workflow) await writeWorkflow(workflow);
+      await saveDrinkPresets(presets);
     },
     onSettled: async () => {
       await Promise.all([

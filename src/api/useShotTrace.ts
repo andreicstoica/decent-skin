@@ -11,12 +11,14 @@ export interface TracePoint {
   profileFrame?: number;
 }
 
+const EMPTY_TRACE: TracePoint[] = [];
+
 /**
  * Sample in an effect and publish the latest point without waiting for the
  * next snapshot to trigger a render.
  */
 export function useShotTrace(snapshot: MachineSnapshot | null, weightFlow: number | null) {
-  const [trace, setTrace] = useState<TracePoint[]>([]);
+  const [trace, setTrace] = useState(EMPTY_TRACE);
   const startedAt = useRef<number | null>(null);
   const lastAt = useRef(-Infinity);
   const getWeightFlow = useEffectEvent(() => weightFlow);
@@ -48,5 +50,5 @@ export function useShotTrace(snapshot: MachineSnapshot | null, weightFlow: numbe
     setTrace((previous) => first ? [point] : [...previous, point]);
   }, [snapshot, extracting]);
 
-  return { trace: snapshot?.state.substate === "preparingForShot" ? [] : trace, extracting };
+  return snapshot?.state.substate === "preparingForShot" ? EMPTY_TRACE : trace;
 }

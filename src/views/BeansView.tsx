@@ -38,7 +38,7 @@ const time = (iso?: string | null) => {
 const fold = (text?: string | null) => (text ?? "").trim().toLocaleLowerCase();
 
 const shotBatchId = (shot: ShotSummary) =>
-  (shot.workflow?.context as { beanBatchId?: string } | undefined)?.beanBatchId;
+  shot.workflow?.context?.beanBatchId;
 
 function lastShotByBean(items: BeanWithBatches[], shots: ShotSummary[]) {
   const beanOfBatch = new Map<string, string>();
@@ -80,7 +80,7 @@ function isLoaded({ bean, batches }: BeanWithBatches, activeBatchId?: string, ac
 }
 
 export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
-  const { data: items, isLoading } = useBeans();
+  const { data: items, isLoading, isError, refetch } = useBeans();
   const { data: workflow } = useWorkflow();
   const { data: shots } = useShots(100);
   const selectBean = useSelectBean();
@@ -132,6 +132,16 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
   }, [shown]);
 
   if (isLoading) return <div className="panel" />;
+  if (isError && !items) {
+    return (
+      <div className="panel">
+        <div className="empty">
+          <h2 className="empty__h">Could not load bags</h2>
+          <button type="button" className="btn btn--quiet" onClick={() => void refetch()}>Try again</button>
+        </div>
+      </div>
+    );
+  }
 
   const renderRow = (item: BeanWithBatches, showRoaster: boolean) => {
     const { bean, batches } = item;
@@ -155,7 +165,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
           type="button"
           className="bag__pick"
           onClick={() => !active && selectBean.mutate({ bean, batch: latest })}
-          disabled={selectBean.isPending}
+          disabled={selectBean.isPending || item.batchesUnavailable}
           aria-current={active ? "true" : undefined}
         >
           <span className="bag__main">
@@ -168,6 +178,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
               ) : null}
               {latest?.frozen && <span className="tag tag--quiet">Frozen</span>}
               {bean.decaf && <span className="tag tag--quiet">Decaf</span>}
+              {item.batchesUnavailable && <span className="tag tag--quiet">Roasts unavailable</span>}
             </span>
             {sub && <span className="row__sub truncate">{sub}</span>}
             {bean.notes && (
@@ -232,6 +243,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
   return (
     <div className="panel">
       <div className="sheet">
+        {selectBean.isError && <p className="err" role="alert">Could not load the bag. Try again.</p>}
         <div className="beans__bar">
           <input
             className="search"
@@ -287,6 +299,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
 
       {modal && (
         <BagModal
+          key={modal.mode === "edit" ? `${modal.bean.id}:${modal.batch?.id ?? ""}` : "new"}
           bean={modal.mode === "edit" ? modal.bean : undefined}
           batch={modal.mode === "edit" ? modal.batch : undefined}
           loaded={modal.mode === "edit" ? modal.loaded : false}

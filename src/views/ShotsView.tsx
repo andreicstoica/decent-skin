@@ -9,7 +9,7 @@ const DATE: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
 const TIME: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
 
 export function ShotsView() {
-  const { data: shots, isLoading } = useShots(100);
+  const { data: shots, isLoading, isError, refetch } = useShots(100);
   const { data: beans } = useBeans();
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState({ roaster: "", bean: "", active: false, instant: false });
@@ -62,8 +62,12 @@ export function ShotsView() {
     return (
       <div className="panel">
         <div className="empty">
-          <h2 className="empty__h">No shots yet</h2>
-          <p className="empty__p">Pull a shot and it shows up here.</p>
+          <h2 className="empty__h">{isError ? "Could not load shots" : "No shots yet"}</h2>
+          {isError ? (
+            <button type="button" className="btn btn--quiet" onClick={() => void refetch()}>Try again</button>
+          ) : (
+            <p className="empty__p">Pull a shot and it shows up here.</p>
+          )}
         </div>
       </div>
     );

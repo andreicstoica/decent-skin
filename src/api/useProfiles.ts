@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
 
 export interface ProfileRecord {
@@ -24,30 +24,5 @@ export function useProfiles() {
       return Array.isArray(body) ? body : (body.items ?? []);
     },
     staleTime: 5 * 60_000,
-  });
-}
-
-/**
- * Writes through the workflow rather than POST /machine/profile: Decaid uploads
- * it to the machine either way, but only the workflow copy is saved onto the
- * shot record, which is what makes a shot comparable later.
- */
-export function useSelectProfile() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (record: ProfileRecord) => {
-      const targetWeight = record.profile.target_weight;
-      const body: Record<string, unknown> = { profile: record.profile };
-      if (typeof targetWeight === "number" && Number.isFinite(targetWeight) && targetWeight > 0) {
-        body.context = { targetYield: targetWeight };
-      }
-      const res = await fetch(restUrl("/workflow"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
-    },
-    onSuccess: () => client.invalidateQueries({ queryKey: ["workflow"] }),
   });
 }

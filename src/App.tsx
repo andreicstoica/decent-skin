@@ -96,7 +96,7 @@ export default function App() {
   const water = useWater(settings.tankFullMm);
   const { data: workflow } = useWorkflow();
   const { elapsed } = useShotTimer(snapshot);
-  const { trace } = useShotTrace(snapshot, scale.weightFlow);
+  const trace = useShotTrace(snapshot, scale.weightFlow);
   const { finishedId, dismiss } = useShotFinished(snapshot);
   const maintenance = useMaintenance();
 
@@ -124,11 +124,10 @@ export default function App() {
   };
   const showClock = resting && tab === "Brew";
   const pulling = state === "espresso" && tab === "Brew" && !finishedId;
-  const hideTopbar = showClock || pulling;
 
   return (
     <div className={`app ${pulling ? "app--pulling" : ""}`}>
-      {!showClock && <header className="topbar" aria-hidden={hideTopbar || undefined} inert={hideTopbar}>
+      {!showClock && <header className="topbar" aria-hidden={pulling || undefined} inert={pulling}>
         <div className="topbar__id">
           <MachineStatus snapshot={snapshot} />
         </div>
@@ -149,7 +148,7 @@ export default function App() {
 
         <div className="topbar__end">
           <div className="alerts">
-            {powerError && !hideTopbar && <span className="alert alert--urgent" role="alert">{powerError}</span>}
+            {powerError && !pulling && <span className="alert alert--urgent" role="alert">{powerError}</span>}
             {socket !== "open" && <span className="alert alert--urgent">Gateway offline</span>}
             {water?.status === "refill" && <span className="alert alert--urgent">Refill water</span>}
             {water?.status === "low" && <span className="alert">Water low</span>}

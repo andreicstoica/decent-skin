@@ -13,6 +13,7 @@ interface ProfileModalProps {
   pinned: boolean;
   pinnedCount: number;
   busy: boolean;
+  loadFailed: boolean;
   pinning: boolean;
   onClose: () => void;
   onOneOff: () => void;
@@ -26,6 +27,7 @@ export function ProfileModal({
   pinned,
   pinnedCount,
   busy,
+  loadFailed,
   pinning,
   onClose,
   onOneOff,
@@ -133,6 +135,7 @@ export function ProfileModal({
 
         </div>
 
+        {loadFailed && <p className="err" role="alert">Could not finish loading the profile. Try again.</p>}
         <footer className="modal__foot">
           <button
             type="button"

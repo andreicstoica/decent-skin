@@ -123,7 +123,7 @@ export function Tank({ water, tankFullMm }: { water: Water; tankFullMm: number }
 }
 
 export function Cleaning({ state }: { state: MachineState }) {
-  const { shotsSinceClean, cleanIntervalShots, lastCleanedAt, due } = useMaintenance();
+  const { shotsSinceClean, cleanIntervalShots, lastCleanedAt, due, capped, countUnavailable, isLoading } = useMaintenance();
   const markCleaned = useMarkCleaned();
   const setCleanInterval = useSetCleanInterval();
   const command = useMachineCommand();
@@ -153,11 +153,11 @@ export function Cleaning({ state }: { state: MachineState }) {
       <div className="gauge">
         <div className="gauge__nums">
           <span className="gauge__v num">
-            {shotsSinceClean}
+            {isLoading || countUnavailable ? "—" : `${shotsSinceClean}${capped ? "+" : ""}`}
             <small>/{cleanIntervalShots}</small>
           </span>
           <span className="row__sub">
-            {last ? `Last ${last}` : "Shots since clean"}
+            {countUnavailable ? "Shot count unavailable" : last ? `Last ${last}` : "Shots since clean"}
           </span>
           <span className="actions__end" />
           <button

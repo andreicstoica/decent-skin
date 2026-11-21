@@ -371,12 +371,17 @@ button, input, textarea, select { touch-action: manipulation; }
   overflow: hidden;
   pointer-events: none;
 }
+.brew--utility { overflow-y: auto; }
+.brew--utility .deck { max-height: none; }
+.brew--utility .live { flex: none; }
+.deck__top,
+.deck__espresso {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
+}
 .deck__top {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px var(--gutter) 0;
+  padding-top: 10px;
 }
 /* Name leads, provenance follows in the same face, one step down. The
    up/down mark reads as "pick another", not "go somewhere". The negative
@@ -385,11 +390,11 @@ button, input, textarea, select { touch-action: manipulation; }
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 0 1 auto;
+  justify-self: start;
   min-width: 0;
-  max-width: 58%;
+  max-width: calc(100% - var(--gutter));
   min-height: var(--hit);
-  margin-left: -10px;
+  margin-left: calc(var(--gutter) - 10px);
   padding: 4px 8px 4px 10px;
   background: transparent;
   border: 0;
@@ -416,11 +421,6 @@ button, input, textarea, select { touch-action: manipulation; }
 }
 
 .deck__body { flex: 0 0 auto; display: flex; flex-direction: column; }
-.deck__espresso {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr);
-  align-items: stretch;
-}
 .deck__espresso .favs {
   border-bottom: 0;
   border-right: var(--rule-w) solid hsl(var(--rule));
@@ -434,9 +434,7 @@ button, input, textarea, select { touch-action: manipulation; }
   justify-content: center;
 }
 .deck__top .modebar {
-  margin: 0;
-  width: 340px;
-  max-width: 100%;
+  margin: 0 var(--gutter);
 }
 .live { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .btn--stop {
@@ -503,7 +501,7 @@ button, input, textarea, select { touch-action: manipulation; }
 .dial__sub { font-size: 12px; color: hsl(var(--muted)); }
 .stepper { display: flex; align-items: center; gap: 8px; }
 .stepper__v { min-width: 3.2ch; text-align: center; }
-.stepper__ratio { color: hsl(var(--fg)); }
+.stepper__ratio { margin-inline-start: 10px; color: hsl(var(--fg)); font-weight: 600; }
 
 /* In the deck every dial is a column: value on top, − and + below, so three
    fit side by side in the narrow column without crowding. */
@@ -664,7 +662,7 @@ button, input, textarea, select { touch-action: manipulation; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0;
+  padding: 0 8px;
   font: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -673,7 +671,7 @@ button, input, textarea, select { touch-action: manipulation; }
   color: hsl(var(--accent-text));
   cursor: pointer;
 }
-.oneoff::before { content: ""; position: absolute; inset: -12px -8px; }
+.oneoff::before { content: ""; position: absolute; inset: -12px 0; }
 .oneoff[disabled] { color: hsl(var(--muted)); cursor: default; }
 .oneoff:focus-visible { outline: 2px solid hsl(var(--accent-text)); outline-offset: 4px; border-radius: 2px; }
 .oneoff__badge {
@@ -1317,6 +1315,7 @@ button, input, textarea, select { touch-action: manipulation; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 20px;
 }
+.bagform__fields { min-width: 0; margin: 0; padding: 0; border: 0; }
 .bagform__cell {
   display: flex;
   flex-direction: column;
@@ -1329,6 +1328,10 @@ button, input, textarea, select { touch-action: manipulation; }
   text-align: left;
 }
 @media (max-width: 640px) {
+  .deck__top, .deck__espresso { grid-template-columns: minmax(0, 1fr); }
+  .deck__top { row-gap: 8px; }
+  .deck__espresso .favs { border-right: 0; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
+
   .bagform__grid { grid-template-columns: 1fr; }
 }
 
@@ -1561,7 +1564,7 @@ button, input, textarea, select { touch-action: manipulation; }
 
 .detail { display: flex; flex-direction: column; }
 .detail__head { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding-bottom: 16px; }
-.detail__back { gap: 4px; padding: 0; border: 0; background: transparent; color: hsl(var(--muted)); }
+.detail__back { gap: 4px; padding: 0 10px; margin-inline-start: -10px; border: 0; background: transparent; color: hsl(var(--muted)); }
 @media (hover: hover) and (pointer: fine) {
   .detail__back:hover { color: hsl(var(--fg)); }
 }

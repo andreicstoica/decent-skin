@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
 import type { ProfileRecord } from "./useProfiles";
+import { writeWorkflow } from "./useWorkflow";
 
 export const MAX_FAVORITES = 5;
 
@@ -9,7 +10,7 @@ export interface Favorites {
   oneOffReturnId: string | null;
 }
 
-export interface SelectOneOffProfileInput {
+interface SelectProfileInput {
   record: ProfileRecord;
   returnToId?: string | null;
 }
@@ -58,41 +59,27 @@ export function useToggleFavorite() {
   });
 }
 
-export function useSelectOneOffProfile() {
+export function useSelectProfile() {
   const client = useQueryClient();
   return useMutation({
     scope: favoritesScope,
-    mutationFn: async ({ record, returnToId }: SelectOneOffProfileInput) => {
+    mutationFn: async ({ record, returnToId = null }: SelectProfileInput) => {
       const current = await readFavorites();
       const targetWeight = record.profile.target_weight;
-      const workflowBody: Record<string, unknown> = { profile: record.profile };
-      if (typeof targetWeight === "number" && Number.isFinite(targetWeight) && targetWeight > 0) {
-        workflowBody.context = { targetYield: targetWeight };
-      }
-      const res = await fetch(restUrl("/workflow"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(workflowBody),
+      // The workflow profile is also the copy Decaid attaches to the shot.
+      await writeWorkflow({
+        profile: record.profile,
+        context: targetWeight != null && Number.isFinite(targetWeight) && targetWeight > 0
+          ? { targetYield: targetWeight }
+          : undefined,
       });
-      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
-      try {
-        await saveFavorites({ ...current, oneOffReturnId: returnToId ?? null });
-      } finally {
-        await client.invalidateQueries({ queryKey: ["workflow"] });
+      if (current.oneOffReturnId !== returnToId) {
+        await saveFavorites({ ...current, oneOffReturnId: returnToId });
       }
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: favoritesKey }),
-  });
-}
-
-export function useClearOneOff() {
-  const client = useQueryClient();
-  return useMutation({
-    scope: favoritesScope,
-    mutationFn: async () => {
-      const current = await readFavorites();
-      await saveFavorites({ ...current, oneOffReturnId: null });
-    },
-    onSuccess: () => client.invalidateQueries({ queryKey: favoritesKey }),
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: ["workflow"] }),
+      client.invalidateQueries({ queryKey: favoritesKey }),
+    ]),
   });
 }

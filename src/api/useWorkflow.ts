@@ -50,6 +50,7 @@ export interface Workflow {
 }
 
 export interface WorkflowPatch {
+  profile?: Workflow["profile"];
   context?: Partial<Omit<WorkflowContext, "targetYield">> & { targetYield?: number | null };
   steamSettings?: Partial<SteamSettings>;
   hotWaterData?: Partial<HotWaterData>;
@@ -71,20 +72,22 @@ export function useWorkflow() {
  * Partial update: Decaid merges what you send and re-uploads to the machine.
  * Note: Decaid rejects `targetYield: null` on PUT (use `0` to disable SAW).
  */
+export async function writeWorkflow(patch: WorkflowPatch) {
+  const body = patch.context?.targetYield === null
+    ? { ...patch, context: { ...patch.context, targetYield: 0 } }
+    : patch;
+  const res = await fetch(restUrl("/workflow"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
+}
+
 export function useUpdateWorkflow() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (patch: WorkflowPatch) => {
-      const body = patch.context?.targetYield === null
-        ? { ...patch, context: { ...patch.context, targetYield: 0 } }
-        : patch;
-      const res = await fetch(restUrl("/workflow"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
-    },
+    mutationFn: writeWorkflow,
     onSuccess: () => client.invalidateQueries({ queryKey: ["workflow"] }),
   });
 }

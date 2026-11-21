@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { useProfiles, useSelectProfile, type ProfileRecord } from "../api/useProfiles";
+import { useProfiles, type ProfileRecord } from "../api/useProfiles";
 import { useWorkflow } from "../api/useWorkflow";
 import {
   MAX_FAVORITES,
-  useClearOneOff,
   useFavorites,
-  useSelectOneOffProfile,
+  useSelectProfile,
   useToggleFavorite,
 } from "../api/useFavorites";
 import { ProfileSpark } from "../components/ProfileSpark";
@@ -23,15 +22,13 @@ export function ProfilesView({ onOneOffLoaded }: ProfilesViewProps) {
   const { data: workflow } = useWorkflow();
   const { favoriteIds, oneOffReturnId } = useFavorites();
   const select = useSelectProfile();
-  const selectOneOff = useSelectOneOffProfile();
-  const clearOneOff = useClearOneOff();
   const toggleFavorite = useToggleFavorite();
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const current = workflow?.profile?.title;
   const full = favoriteIds.length >= MAX_FAVORITES;
-  const busy = select.isPending || selectOneOff.isPending;
+  const busy = select.isPending;
 
   const groups = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -53,7 +50,7 @@ export function ProfilesView({ onOneOffLoaded }: ProfilesViewProps) {
   const close = () => setOpenId(null);
 
   const loadOneOff = (record: ProfileRecord) =>
-    selectOneOff.mutate(
+    select.mutate(
       { record, returnToId },
       {
         onSuccess: () => {
@@ -64,12 +61,7 @@ export function ProfilesView({ onOneOffLoaded }: ProfilesViewProps) {
     );
 
   const loadForGood = (record: ProfileRecord) =>
-    select.mutate(record, {
-      onSuccess: () => {
-        close();
-        if (oneOffReturnId) clearOneOff.mutate();
-      },
-    });
+    select.mutate({ record }, { onSuccess: close });
 
   if (isLoading) return <div className="panel" />;
 
@@ -180,6 +172,7 @@ export function ProfilesView({ onOneOffLoaded }: ProfilesViewProps) {
           pinned={favoriteIds.includes(open.id)}
           pinnedCount={favoriteIds.length}
           busy={busy}
+          loadFailed={select.isError && select.variables?.record.id === open.id}
           pinning={toggleFavorite.isPending && toggleFavorite.variables === open.id}
           onClose={close}
           onOneOff={() => loadOneOff(open)}

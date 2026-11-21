@@ -6,8 +6,8 @@ import { Stepper } from "../components/Stepper";
 import { clamp, round, useNudge } from "../components/nudge";
 import { FlushPanel, SteamPanel, WaterPanel } from "../components/DrinkPanels";
 import { useBeanBatch, useGrinder, useUpdateWorkflow, type Workflow } from "../api/useWorkflow";
-import { useProfiles, useSelectProfile, type ProfileRecord } from "../api/useProfiles";
-import { useClearOneOff, useFavorites } from "../api/useFavorites";
+import { useProfiles, type ProfileRecord } from "../api/useProfiles";
+import { useFavorites, useSelectProfile } from "../api/useFavorites";
 import { useConnectScale, useTareScale } from "../api/useScaleActions";
 import { shortName } from "../api/profileStyle";
 import type { TracePoint } from "../api/useShotTrace";
@@ -108,7 +108,7 @@ function DoseYield({ dose, yieldTarget }: { dose?: number; yieldTarget?: number 
   return (
     <>
       <Stepper
-        label="Dose g"
+        label="Dose"
         value={d ? d.toFixed(1) : "—"}
         less="Less coffee"
         more="More coffee"
@@ -120,7 +120,7 @@ function DoseYield({ dose, yieldTarget }: { dose?: number; yieldTarget?: number 
         ruled
         label={
           <>
-            Yield g{ratio && <span className="num stepper__ratio"> · {ratio}</span>}
+            Yield{ratio && <span className="num stepper__ratio">{ratio}</span>}
           </>
         }
         value={y ? y.toFixed(0) : "—"}
@@ -293,7 +293,6 @@ function Favorites({
   const { data: profiles } = useProfiles();
   const { favoriteIds, oneOffReturnId } = useFavorites();
   const select = useSelectProfile();
-  const clearOneOff = useClearOneOff();
 
   const byId = new Map((profiles ?? []).map((record) => [record.id, record]));
   const pinned = favoriteIds
@@ -303,13 +302,6 @@ function Favorites({
   const inOneOff = !!oneOffReturnId;
   // The loaded profile is named only when no pinned pill already shows it.
   const unpinned = !!currentTitle && !pinned.some((record) => record.profile.title === currentTitle);
-
-  const load = (record: ProfileRecord) =>
-    select.mutate(record, {
-      onSuccess: () => {
-        if (inOneOff) clearOneOff.mutate();
-      },
-    });
 
   return (
     <section className="favs" aria-label="Profile">
@@ -324,7 +316,7 @@ function Favorites({
             <button
               type="button"
               className="oneoff"
-              onClick={() => returnTo && load(returnTo)}
+              onClick={() => returnTo && select.mutate({ record: returnTo })}
               disabled={!returnTo || locked || select.isPending}
               title={returnTo ? `Return to ${shortName(returnTo.profile.title)}` : undefined}
             >
@@ -337,14 +329,14 @@ function Favorites({
       <div className="favs__grid" role="group" aria-label="Favorite profiles">
         {pinned.map((record) => {
           const on = record.profile.title === currentTitle;
-          const loading = select.isPending && select.variables?.id === record.id;
+          const loading = select.isPending && select.variables?.record.id === record.id;
           return (
             <button
               type="button"
               key={record.id}
               className={`fav ${on ? "fav--on" : ""} ${loading ? "fav--loading" : ""}`}
               aria-pressed={on}
-              onClick={() => !on && load(record)}
+              onClick={() => !on && select.mutate({ record })}
               disabled={locked || select.isPending}
               title={record.profile.title}
             >
@@ -356,6 +348,7 @@ function Favorites({
           {pinned.length === 0 ? "Pin up to 5 favorites" : "View all"}
         </button>
       </div>
+      {select.isError && <p className="err" role="alert">Could not finish loading the profile. Try again.</p>}
     </section>
   );
 }
@@ -411,10 +404,11 @@ export function BrewView({
   const flushLeft = useCountdown(flushing, flushSeconds, () => run("idle"));
 
   const pulling = state === "espresso";
+  const showTrace = pulling || pane === "espresso";
   const beanMeta = [ctx?.coffeeRoaster, roast].filter(Boolean).join(" · ");
 
   return (
-    <div className={`brew ${pulling ? "brew--pulling" : ""}`}>
+    <div className={`brew ${pulling ? "brew--pulling" : ""} ${showTrace ? "" : "brew--utility"}`}>
       <div className="deck" aria-hidden={pulling || undefined}>
         <div className="deck__top">
           <button
@@ -493,7 +487,7 @@ export function BrewView({
           <Read slot="flow" label={<span className="lbl">Flow mL/s</span>} value={snapshot.flow.toFixed(1)} channel="flow" />
           <Read slot="weight" label={<span className="lbl">Weight flow g/s</span>} value={weightFlow?.toFixed(1) ?? "—"} channel="weight" />
         </div>
-        <ShotChart trace={trace} live={pulling} />
+        {showTrace && <ShotChart trace={trace} live={pulling} />}
       </div>
     </div>
   );

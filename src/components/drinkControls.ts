@@ -7,7 +7,7 @@ import {
   type SteamPreset,
   type WaterPreset,
 } from "../api/useDrinkPresets";
-import { useUpdateWorkflow, useWorkflow } from "../api/useWorkflow";
+import { useUpdateWorkflow, useWorkflow, type SteamSettings } from "../api/useWorkflow";
 import type { Range } from "./nudge";
 
 export const STEAM_RANGE = {
@@ -32,9 +32,13 @@ export const FLUSH_RANGE = {
 export const steamSummary = (p: SteamPreset) => `${p.targetTemperature}° · ${p.flow.toFixed(1)} mL/s · ${p.duration}s`;
 export const waterSummary = (p: WaterPreset) => `${p.volume} mL · ${p.targetTemperature}° · ${p.duration}s`;
 
-/** The active size, following a selection the moment it is tapped. */
-function useActive<P extends SteamPreset>(presets: P[], savedId: string, pendingId: string | undefined) {
-  return presets.find((p) => p.id === (pendingId ?? savedId)) ?? presets[0];
+function savedPreset<P extends SteamPreset>(presets: P[], savedId: string) {
+  return presets.find((p) => p.id === savedId) ?? presets[0];
+}
+
+export function matchesSteamPreset(preset: SteamPreset, applied: SteamSettings | undefined) {
+  return preset.targetTemperature === applied?.targetTemperature &&
+    preset.duration === applied?.duration && preset.flow === applied?.flow;
 }
 
 /**
@@ -47,18 +51,19 @@ export function useSteam() {
   const select = useSelectSteamPreset();
   const update = useUpdateSteamPreset();
   const heater = useUpdateWorkflow();
-  const active = useActive(presets.steam, presets.activeSteamId, select.isPending ? select.variables : undefined);
-  const heaterOn = (workflow?.steamSettings?.targetTemperature ?? 0) > 0;
+  const active = savedPreset(presets.steam, presets.activeSteamId);
+  const applied = workflow?.steamSettings;
+  const heaterOn = (applied?.targetTemperature ?? 0) > 0;
   const setHeater = (on: boolean) =>
     heater.mutate({ steamSettings: { targetTemperature: on ? active.targetTemperature : 0 } });
   const failed = select.isError || update.isError || heater.isError;
-  return { presets: presets.steam, active, heaterOn, setHeater, select, update, failed };
+  return { presets: presets.steam, active, applied, heaterOn, setHeater, select, update, failed };
 }
 
 export function useWaterPresets() {
   const presets = useDrinkPresets();
   const select = useSelectWaterPreset();
   const update = useUpdateWaterPreset();
-  const active = useActive(presets.water, presets.activeWaterId, select.isPending ? select.variables : undefined);
+  const active = savedPreset(presets.water, presets.activeWaterId);
   return { presets: presets.water, active, select, update, failed: select.isError || update.isError };
 }

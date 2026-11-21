@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
 import type { MachineState } from "./types";
-import { useShots } from "./useShots";
+import { readShotPage, SHOT_PAGE_LIMIT, useShotPage } from "./useShots";
 
 interface MaintenanceSettings {
   lastCleanedAt: string | null;
@@ -15,7 +15,6 @@ export type MachineCommand = Extract<MachineState,
 const DEFAULT_MAINTENANCE: MaintenanceSettings = { lastCleanedAt: null, cleanIntervalShots: 50 };
 const MIN_CLEAN_INTERVAL = 10;
 const MAX_CLEAN_INTERVAL = 500;
-const SHOT_HISTORY_LIMIT = 100;
 const maintenanceUrl = restUrl("/store/decent-skin/maintenance");
 const maintenanceKey = ["maintenance"] as const;
 const maintenanceScope = { id: "maintenance" };
@@ -38,18 +37,39 @@ async function saveMaintenance(settings: MaintenanceSettings) {
 
 export function useMaintenance() {
   const settings = useQuery({ queryKey: maintenanceKey, queryFn: readMaintenance });
-  const shots = useShots(SHOT_HISTORY_LIMIT);
+  const shots = useShotPage(SHOT_PAGE_LIMIT);
   const { lastCleanedAt, cleanIntervalShots } = settings.data ?? DEFAULT_MAINTENANCE;
-  const shotsSinceClean = lastCleanedAt === null
-    ? shots.data?.length ?? 0
-    : shots.data?.filter(({ timestamp }) => Date.parse(timestamp) > Date.parse(lastCleanedAt)).length ?? 0;
+  const cutoff = lastCleanedAt ? Date.parse(lastCleanedAt) : 0;
+  const page = shots.data;
+  const recent = page?.items.filter(({ timestamp }) => Date.parse(timestamp) > cutoff).length ?? 0;
+  const needsOlder = !!lastCleanedAt && !!page && recent === SHOT_PAGE_LIMIT && page.total > recent;
+  const older = useQuery({
+    queryKey: ["shots", "cleaning", lastCleanedAt, page?.items[recent - 1]?.id],
+    enabled: needsOlder,
+    queryFn: async ({ signal }) => {
+      let count = 0;
+      let offset = SHOT_PAGE_LIMIT;
+      while (offset < MAX_CLEAN_INTERVAL) {
+        const next = await readShotPage(SHOT_PAGE_LIMIT, offset, signal);
+        const sinceClean = next.items.filter(({ timestamp }) => Date.parse(timestamp) > cutoff).length;
+        count += sinceClean;
+        offset += SHOT_PAGE_LIMIT;
+        if (sinceClean < SHOT_PAGE_LIMIT || offset >= next.total) return { count, capped: false };
+      }
+      return { count, capped: true };
+    },
+    staleTime: 30_000,
+  });
+  const shotsSinceClean = lastCleanedAt ? recent + (needsOlder ? older.data?.count ?? 0 : 0) : page?.total ?? 0;
 
   return {
     lastCleanedAt,
     cleanIntervalShots,
     shotsSinceClean,
+    capped: needsOlder && older.data?.capped === true,
     due: shotsSinceClean >= cleanIntervalShots,
-    isLoading: settings.isLoading || shots.isLoading,
+    countUnavailable: settings.isError || shots.isError || (needsOlder && older.isError),
+    isLoading: settings.isLoading || shots.isLoading || (needsOlder && older.isLoading),
   };
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
-  useAddBag,
+  useAddBean,
   useAddBatch,
   useArchiveBean,
   useSelectBean,
@@ -24,12 +24,8 @@ interface BagModalProps {
 export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps) {
   const isEdit = !!bean;
   const titleId = useId();
-  const box = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLFormElement>(null);
   const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  });
-
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     box.current?.focus();
@@ -43,7 +39,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
     };
   }, []);
 
-  const addBag = useAddBag();
+  const addBean = useAddBean();
   const updateBean = useUpdateBean();
   const updateBatch = useUpdateBatch();
   const addBatch = useAddBatch();
@@ -62,12 +58,14 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
     batch?.roastDate ? batch.roastDate.slice(0, 10) : today(),
   );
   const [weight, setWeight] = useState(
-    String(batch?.weightRemaining ?? batch?.weight ?? 250),
+    String(batch?.weightRemaining ?? batch?.weight ?? (isEdit ? "" : 250)),
   );
   const [notes, setNotes] = useState(bean?.notes ?? "");
   const [decaf, setDecaf] = useState(Boolean(bean?.decaf));
   const [frozen, setFrozen] = useState(Boolean(batch?.frozen));
   const [armedArchive, setArmedArchive] = useState(false);
+  const [savedBag, setSavedBag] = useState<{ bean: Bean; batch: BeanBatchRecord } | null>(null);
+  const savedBean = !isEdit ? addBean.data : undefined;
 
   useEffect(() => {
     if (!armedArchive) return;
@@ -77,21 +75,28 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
 
   const ready = !!roaster.trim() && !!name.trim();
   const pending =
-    addBag.isPending ||
+    addBean.isPending ||
     updateBean.isPending ||
     updateBatch.isPending ||
     addBatch.isPending ||
+    selectBean.isPending ||
+    updateWorkflow.isPending ||
     archiveBean.isPending;
   const failed =
-    addBag.isError ||
+    addBean.isError ||
     updateBean.isError ||
     updateBatch.isError ||
     addBatch.isError ||
+    updateWorkflow.isError ||
     archiveBean.isError;
+  const requestClose = () => { if (!pending) onClose(); };
+  useEffect(() => {
+    closeRef.current = requestClose;
+  });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ready || pending) return;
+    if (pending || (!ready && !savedBag)) return;
     const parsedWeight = Number.parseFloat(weight);
     const validWeight = Number.isFinite(parsedWeight) && parsedWeight >= 0 ? parsedWeight : undefined;
     const varieties = variety
@@ -100,22 +105,31 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
       .filter(Boolean);
 
     try {
-      if (!isEdit) {
-        await addBag.mutateAsync({
+      if (savedBag) {
+        await selectBean.mutateAsync(savedBag);
+      } else if (!isEdit) {
+        const createdBean = savedBean ?? await addBean.mutateAsync({
           roaster: roaster.trim(),
           name: name.trim(),
           country: country.trim() || undefined,
           region: region.trim() || undefined,
           processing: processing.trim() || undefined,
           variety: varieties.length ? varieties : undefined,
-          roastLevel: roastLevel.trim() || undefined,
           decaf: decaf || undefined,
-          frozen: frozen || undefined,
-          roastDate: roastDate || undefined,
-          weight: validWeight && validWeight > 0 ? validWeight : undefined,
           notes: notes.trim() || undefined,
-          selectNow: true,
         });
+        const createdBatch = await addBatch.mutateAsync({
+          beanId: createdBean.id,
+          batch: {
+            roastDate: roastDate || undefined,
+            roastLevel: roastLevel.trim() || undefined,
+            weight: validWeight && validWeight > 0 ? validWeight : undefined,
+            frozen: frozen || undefined,
+          },
+        });
+        const saved = { bean: createdBean, batch: createdBatch };
+        setSavedBag(saved);
+        await selectBean.mutateAsync(saved);
       } else {
         await updateBean.mutateAsync({
           id: bean.id,
@@ -171,7 +185,9 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
         },
       });
       if (loaded) {
-        selectBean.mutate({ bean, batch: created });
+        const saved = { bean, batch: created };
+        setSavedBag(saved);
+        await selectBean.mutateAsync(saved);
       }
       onClose();
     } catch {
@@ -191,9 +207,9 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
   };
 
   return (
-    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && requestClose()}>
       <form
-        ref={box as unknown as React.RefObject<HTMLFormElement>}
+        ref={box}
         className="modal modal--bag"
         role="dialog"
         aria-modal="true"
@@ -208,18 +224,19 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 {isEdit ? bean.name : "Add bag"}
               </h2>
             </div>
-            <button type="button" className="modal__close" onClick={onClose} aria-label="Close">
+            <button type="button" className="modal__close" onClick={requestClose} disabled={pending} aria-label="Close">
               ×
             </button>
           </header>
 
-          <div className="bagform__grid">
+          <fieldset disabled={!!savedBag} className="bagform__grid bagform__fields">
             <div className="bagform__cell">
               <label className="lbl" htmlFor="bag-roaster">Roaster</label>
               <input
                 id="bag-roaster"
                 className="field__in field__in--full"
                 value={roaster}
+                disabled={!!savedBean}
                 onChange={(e) => setRoaster(e.target.value)}
                 placeholder="Sey, La Cabra…"
                 autoCapitalize="words"
@@ -236,6 +253,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-name"
                 className="field__in field__in--full"
                 value={name}
+                disabled={!!savedBean}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Pink Bourbon"
                 autoCapitalize="words"
@@ -251,6 +269,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-country"
                 className="field__in field__in--full"
                 value={country}
+                disabled={!!savedBean}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="Colombia, Ethiopia…"
                 autoCapitalize="words"
@@ -264,6 +283,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-region"
                 className="field__in field__in--full"
                 value={region}
+                disabled={!!savedBean}
                 onChange={(e) => setRegion(e.target.value)}
                 placeholder="Huila, Yirgacheffe…"
                 autoCapitalize="words"
@@ -277,6 +297,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-process"
                 className="field__in field__in--full"
                 value={processing}
+                disabled={!!savedBean}
                 onChange={(e) => setProcessing(e.target.value)}
                 placeholder="Washed, Natural, Honey…"
                 autoCapitalize="words"
@@ -290,6 +311,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-variety"
                 className="field__in field__in--full"
                 value={variety}
+                disabled={!!savedBean}
                 onChange={(e) => setVariety(e.target.value)}
                 placeholder="Gesha, SL28"
                 autoCapitalize="words"
@@ -342,19 +364,21 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 id="bag-notes"
                 className="field__in field__in--full"
                 value={notes}
+                disabled={!!savedBean}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Strawberry, cacao…"
                 autoComplete="off"
                 enterKeyHint="done"
               />
             </div>
-          </div>
+          </fieldset>
 
           <div className="bagform__flags">
             <button
               type="button"
               className={`btn btn--compact ${frozen ? "" : "btn--quiet"}`}
               aria-pressed={frozen}
+              disabled={!!savedBag}
               onClick={() => setFrozen((v) => !v)}
             >
               {frozen ? "Frozen" : "Freeze bag"}
@@ -363,19 +387,24 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
               type="button"
               className={`btn btn--compact ${decaf ? "" : "btn--quiet"}`}
               aria-pressed={decaf}
+              disabled={!!savedBag || !!savedBean}
               onClick={() => setDecaf((v) => !v)}
             >
-              {decaf ? "Decaf" : "Decaf"}
+              Decaf
             </button>
           </div>
 
-          {failed && (
+          {selectBean.isError ? (
+            <p className="err" role="alert">Saved, but not loaded. Retry loading without creating another roast.</p>
+          ) : savedBean && addBatch.isError ? (
+            <p className="err" role="alert">Coffee saved, but the roast wasn’t. Try again to save and load the roast.</p>
+          ) : failed && (
             <p className="err" role="alert">Could not save changes. Check that Decaid is reachable.</p>
           )}
         </div>
 
         <footer className="modal__foot">
-          {isEdit && (
+          {isEdit && !savedBag && (
             <>
               <button
                 type="button"
@@ -396,8 +425,8 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
             </>
           )}
           <span className="actions__end" />
-          <button type="submit" className="btn" disabled={!ready || pending}>
-            {pending ? "Saving…" : isEdit ? "Save changes" : "Save & load bag"}
+          <button type="submit" className="btn" disabled={(!ready && !savedBag) || pending}>
+            {savedBag ? (pending ? "Loading…" : "Retry loading") : pending ? "Saving…" : isEdit ? "Save changes" : "Save & load bag"}
           </button>
         </footer>
       </form>
