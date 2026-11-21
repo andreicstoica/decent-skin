@@ -1,7 +1,7 @@
 {
   "id": "decent-skin",
-  "name": "Decent Skin",
+  "name": "Cubby",
   "description": "Custom DE1 skin with shot telemetry and brew-hardware logging",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "andrei"
 }

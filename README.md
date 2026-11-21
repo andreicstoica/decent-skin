@@ -1,4 +1,4 @@
-# Decent Skin
+# Cubby
 
 A custom skin for the Decent Espresso machine, built on [Decaid](https://github.com/decentespresso/decaid). It includes live shot traces, shot history and ratings, a bean library, and profile favorites.
 
