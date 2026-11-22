@@ -229,7 +229,8 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
             </button>
           </header>
 
-          <fieldset disabled={!!savedBag} className="bagform__grid bagform__fields">
+          <fieldset disabled={!!savedBag} className="bagform__fields">
+            <div className="bagform__grid">
             <div className="bagform__cell">
               <label className="lbl" htmlFor="bag-roaster">Roaster</label>
               <input
@@ -370,6 +371,7 @@ export function BagModal({ bean, batch, loaded = false, onClose }: BagModalProps
                 autoComplete="off"
                 enterKeyHint="done"
               />
+            </div>
             </div>
           </fieldset>
 

@@ -783,9 +783,7 @@ button, input, textarea, select { touch-action: manipulation; }
   font-size: 11px;
   line-height: 1.2;
   color: hsl(var(--muted));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   max-width: 100%;
 }
 .preset--on { background: hsl(var(--accent)); color: hsl(var(--accent-fg)); border-color: transparent; cursor: default; }
@@ -1315,7 +1313,7 @@ button, input, textarea, select { touch-action: manipulation; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 20px;
 }
-.bagform__fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.bagform__fields { min-inline-size: 0; max-inline-size: 100%; margin: 0; padding: 0; border: 0; }
 .bagform__cell {
   display: flex;
   flex-direction: column;
@@ -1325,14 +1323,17 @@ button, input, textarea, select { touch-action: manipulation; }
 .bagform__flags { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
 .field__in--full {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   text-align: left;
 }
+.modal--bag input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: start; }
 @media (max-width: 640px) {
   .deck__top, .deck__espresso { grid-template-columns: minmax(0, 1fr); }
   .deck__top { row-gap: 8px; }
   .deck__espresso .favs { border-right: 0; border-bottom: var(--rule-w) solid hsl(var(--rule)); }
 
-  .bagform__grid { grid-template-columns: 1fr; }
+  .bagform__grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 .bagwrap { border-bottom: var(--rule-w) solid hsl(var(--rule)); }
@@ -1496,6 +1497,8 @@ button, input, textarea, select { touch-action: manipulation; }
 }
 .settings__col { min-width: 0; }
 .settings .group:last-child { padding-bottom: 0; }
+.wake-schedule__form { gap: 8px; }
+.wake-schedule__form .field__in { flex: 1 1 110px; }
 
 .grinders { display: flex; flex-direction: column; }
 .grinder {

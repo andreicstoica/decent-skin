@@ -13,6 +13,8 @@ import type { useWater } from "../api/useWater";
 import { useWorkflow } from "../api/useWorkflow";
 import { useAddGrinder, useGrinders, useSelectGrinder, type GrinderRecord } from "../api/useGrinders";
 import { Cleaning, Tank } from "./WaterView";
+import { DeviceSettings } from "../components/DeviceSettings";
+import { WakeSchedules } from "../components/WakeSchedules";
 
 declare global {
   interface Window {
@@ -362,6 +364,7 @@ export function SettingsView({
     <div className="panel">
       <div className="settings">
         <div className="settings__col">
+          <DeviceSettings />
           <Tank water={water} tankFullMm={tankFullMm} />
           {state && <Cleaning state={state} />}
           <GrinderSetup />
@@ -406,6 +409,23 @@ export function SettingsView({
                   <Toggle labelId={labelId} on={app.keepAwake} onChange={(keepAwake) => saveApp.mutate({ keepAwake })} />
                 )}
               />
+              {app.scalePowerMode && (
+                <Row
+                  label="Scale when machine sleeps"
+                  control={({ labelId }) => (
+                    <Choice
+                      labelId={labelId}
+                      value={app.scalePowerMode ?? "disabled"}
+                      options={[
+                        ["disabled", "Leave on"],
+                        ["displayOff", "Display off"],
+                        ["disconnect", "Disconnect"],
+                      ] as const}
+                      onChange={(scalePowerMode) => saveApp.mutate({ scalePowerMode })}
+                    />
+                  )}
+                />
+              )}
               <Row
                 label="Require scale to brew"
                 control={({ labelId }) => (
@@ -438,6 +458,7 @@ export function SettingsView({
                   />
                 )}
               />
+              {saveApp.isError && <p className="err" role="alert">Could not save Decaid settings.</p>}
             </Group>
           )}
 
@@ -458,6 +479,7 @@ export function SettingsView({
             </Group>
           )}
 
+          <WakeSchedules />
           <SkinSwitcher />
         </div>
       </div>

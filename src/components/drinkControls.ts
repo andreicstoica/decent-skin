@@ -5,7 +5,6 @@ import {
   useUpdateSteamPreset,
   useUpdateWaterPreset,
   type SteamPreset,
-  type WaterPreset,
 } from "../api/useDrinkPresets";
 import { useUpdateWorkflow, useWorkflow, type SteamSettings } from "../api/useWorkflow";
 import type { Range } from "./nudge";
@@ -29,8 +28,10 @@ export const FLUSH_RANGE = {
   flow: { step: 0.5, min: 1, max: 10, places: 1 },
 } satisfies Record<string, Range>;
 
-export const steamSummary = (p: SteamPreset) => `${p.targetTemperature}° · ${p.flow.toFixed(1)} mL/s · ${p.duration}s`;
-export const waterSummary = (p: WaterPreset) => `${p.volume} mL · ${p.targetTemperature}° · ${p.duration}s`;
+export function presetSummary({ targetTemperature, duration, flow, volume }: Pick<SteamPreset, "targetTemperature" | "duration" | "flow"> & { volume?: number }) {
+  const amount = volume == null ? `${flow.toFixed(1)}\u00a0mL/s` : `${volume}\u00a0mL`;
+  return `${targetTemperature}° · ${duration}s · ${amount}`;
+}
 
 function savedPreset<P extends SteamPreset>(presets: P[], savedId: string) {
   return presets.find((p) => p.id === savedId) ?? presets[0];

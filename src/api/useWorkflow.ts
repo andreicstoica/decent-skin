@@ -57,14 +57,14 @@ export interface WorkflowPatch {
   rinseData?: Partial<RinseData>;
 }
 
-export function useWorkflow() {
+export function useWorkflow(refetchInterval = 15_000) {
   return useQuery({
     queryKey: ["workflow"],
     queryFn: async (): Promise<Workflow | null> => {
       const res = await fetch(restUrl("/workflow"));
       return res.ok ? ((await res.json()) as Workflow) : null;
     },
-    refetchInterval: 15_000,
+    refetchInterval,
   });
 }
 

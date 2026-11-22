@@ -6,11 +6,10 @@ import {
   FLUSH_RANGE,
   matchesSteamPreset,
   STEAM_RANGE,
-  steamSummary,
+  presetSummary,
   useSteam,
   useWaterPresets,
   WATER_RANGE,
-  waterSummary,
 } from "./drinkControls";
 
 export function OnOff({ labelId, on, onChange }: { labelId: string; on: boolean; onChange: (on: boolean) => void }) {
@@ -31,40 +30,14 @@ export function OnOff({ labelId, on, onChange }: { labelId: string; on: boolean;
   );
 }
 
-export function PresetPicker<P extends SteamPreset>({
-  label,
-  presets,
-  activeId,
-  summary,
-  disabled,
-  onSelect,
-}: {
-  label: string;
-  presets: P[];
-  activeId?: string;
-  summary: (preset: P) => string;
-  disabled?: boolean;
-  onSelect: (id: string) => void;
+function PresetCard({ label, summary, pressed, disabled, onClick }: {
+  label: string; summary?: string; pressed: boolean; disabled?: boolean; onClick: () => void;
 }) {
   return (
-    <div className="presets" role="group" aria-label={label}>
-      {presets.map((preset) => {
-        const on = preset.id === activeId;
-        return (
-          <button
-            type="button"
-            key={preset.id}
-            className={`preset ${on ? "preset--on" : ""}`}
-            aria-pressed={on}
-            disabled={disabled}
-            onClick={() => !on && onSelect(preset.id)}
-          >
-            <span className="preset__l">{preset.label}</span>
-            <span className="preset__s num">{summary(preset)}</span>
-          </button>
-        );
-      })}
-    </div>
+    <button type="button" className={`preset ${pressed ? "preset--on" : ""}`} aria-pressed={pressed} disabled={disabled} onClick={onClick}>
+      <span className="preset__l">{label}</span>
+      {summary && <span className="preset__s num">{summary}</span>}
+    </button>
   );
 }
 
@@ -75,19 +48,19 @@ const Failed = () => (
 export function SteamPanel() {
   const { presets, active, applied, heaterOn, setHeater, select, update, failed } = useSteam();
   const heaterId = useId();
+  const activeId = matchesSteamPreset(active, applied) ? active.id : undefined;
   const save = (patch: Partial<Omit<SteamPreset, "id">>, settled: () => void) =>
     update.mutate({ id: active.id, patch }, { onSettled: settled });
 
   return (
     <div className="drink">
-      <PresetPicker
-        label="Steam size"
-        presets={presets}
-        activeId={matchesSteamPreset(active, applied) ? active.id : undefined}
-        summary={steamSummary}
-        disabled={!heaterOn || select.isPending || update.isPending}
-        onSelect={(id) => select.mutate(id)}
-      />
+      <div className="presets" role="group" aria-label="Steam size">
+        {presets.map((preset) => (
+          <PresetCard key={preset.id} label={preset.label} summary={presetSummary(preset)}
+            pressed={preset.id === activeId} disabled={!heaterOn || select.isPending || update.isPending}
+            onClick={() => preset.id !== activeId && select.mutate(preset.id)} />
+        ))}
+      </div>
       <div className="dials drink__dials" key={active.id}>
         <NumberStepper
           label="Flow mL/s"
@@ -149,30 +122,20 @@ export function WaterPanel() {
         {presets.map((preset) => {
           const on = !custom && preset.id === active.id;
           return (
-            <button
-              type="button"
+            <PresetCard
               key={preset.id}
-              className={`preset ${on ? "preset--on" : ""}`}
-              aria-pressed={on}
+              label={preset.label}
+              summary={presetSummary(preset)}
+              pressed={on}
               disabled={select.isPending || update.isPending || updateWorkflow.isPending}
               onClick={() => {
                 setEditingCustom(false);
                 if (!on) select.mutate(preset.id);
               }}
-            >
-              <span className="preset__name">{preset.label}</span>
-              <span className="preset__meta num">{waterSummary(preset)}</span>
-            </button>
+            />
           );
         })}
-        <button
-          type="button"
-          className={`preset ${custom ? "preset--on" : ""}`}
-          aria-pressed={custom}
-          onClick={() => setEditingCustom(true)}
-        >
-          <span className="preset__name">Custom</span>
-        </button>
+        <PresetCard label="Custom" pressed={custom} onClick={() => setEditingCustom(true)} />
       </div>
       <div className="dials drink__dials" key={custom ? "custom" : active.id}>
         <NumberStepper
@@ -235,11 +198,11 @@ export function FlushPanel({ flushing, left }: { flushing: boolean; left: number
         {FLUSH_PRESETS.map((p) => {
           const on = !isCustom && activePreset?.id === p.id;
           return (
-            <button
-              type="button"
+            <PresetCard
               key={p.id}
-              className={`preset ${on ? "preset--on" : ""}`}
-              aria-pressed={on}
+              label={p.label}
+              summary={presetSummary(p)}
+              pressed={on}
               disabled={flushing}
               onClick={() => {
                 setCustom(false);
@@ -251,20 +214,10 @@ export function FlushPanel({ flushing, left }: { flushing: boolean; left: number
                   },
                 });
               }}
-            >
-              <span className="preset__name">{p.label}</span>
-              <span className="preset__meta num">{`${p.targetTemperature}° · ${p.duration}s`}</span>
-            </button>
+            />
           );
         })}
-        <button
-          type="button"
-          className={`preset ${isCustom ? "preset--on" : ""}`}
-          aria-pressed={isCustom}
-          onClick={() => setCustom(true)}
-        >
-          <span className="preset__name">Custom</span>
-        </button>
+        <PresetCard label="Custom" pressed={isCustom} onClick={() => setCustom(true)} />
       </div>
 
       <div className="dials drink__dials">

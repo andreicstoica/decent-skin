@@ -80,8 +80,9 @@ function isLoaded({ bean, batches }: BeanWithBatches, activeBatchId?: string, ac
 }
 
 export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
-  const { data: items, isLoading, isError, refetch } = useBeans();
-  const { data: workflow } = useWorkflow();
+  const [qr, setQr] = useState(false);
+  const { data: items, isLoading, isError, refetch } = useBeans(qr);
+  const { data: workflow, refetch: refreshWorkflow } = useWorkflow(qr ? 5_000 : undefined);
   const { data: shots } = useShots(100);
   const selectBean = useSelectBean();
   const updateBatch = useUpdateBatch();
@@ -89,9 +90,14 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
   const [modal, setModal] = useState<
     null | { mode: "add" } | { mode: "edit"; bean: Bean; batch?: BeanBatchRecord; loaded: boolean }
   >(initialAdd ? { mode: "add" } : null);
-  const [qr, setQr] = useState(false);
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState<Order>("recent");
+
+  const closeQr = () => {
+    setQr(false);
+    void refetch();
+    void refreshWorkflow();
+  };
 
   const activeBatchId = workflow?.context?.beanBatchId;
   const activeName = workflow?.context?.coffeeName;
@@ -235,7 +241,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
             </button>
           </div>
         </div>
-        {qr && <QrModal onClose={() => setQr(false)} />}
+        {qr && <QrModal onClose={closeQr} />}
       </div>
     );
   }
@@ -306,7 +312,7 @@ export function BeansView({ initialAdd = false }: { initialAdd?: boolean }) {
           onClose={() => setModal(null)}
         />
       )}
-      {qr && <QrModal onClose={() => setQr(false)} />}
+      {qr && <QrModal onClose={closeQr} />}
     </div>
   );
 }

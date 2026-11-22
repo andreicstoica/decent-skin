@@ -9,6 +9,8 @@ export interface DecaidSettings {
   blockTareDuringShot?: boolean;
   stopHotWaterAtWeight: boolean;
   scalePowerMode?: "disabled" | "displayOff" | "disconnect";
+  preferredMachineId?: string | null;
+  preferredScaleId?: string | null;
   weightFlowMultiplier?: number;
   volumeFlowMultiplier?: number;
   hotWaterFlowMultiplier?: number;

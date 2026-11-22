@@ -36,16 +36,34 @@ export interface BeanWithBatches {
   batchesUnavailable?: true;
 }
 
-export function useBeans() {
+export function useBeans(live = false) {
   return useQuery({
     queryKey: ["beans"],
-    queryFn: async (): Promise<BeanWithBatches[]> => {
-      const res = await fetch(restUrl("/beans?includeArchived=false"));
+    queryFn: async ({ signal }): Promise<BeanWithBatches[]> => {
+      // Let the browser revalidate Decaid's ETags without custom CORS headers.
+      const revalidate = { signal, cache: "no-cache" } as const;
+      const [res, batchesResponse] = await Promise.all([
+        fetch(restUrl("/beans?includeArchived=false"), revalidate),
+        fetch(restUrl("/bean-batches?includeArchived=false"), revalidate),
+      ]);
       if (!res.ok) throw new Error(`Gateway returned ${res.status}`);
       const beans = (await res.json()) as Bean[];
+      if (batchesResponse.ok) {
+        const byBean = new Map<string, BeanBatchRecord[]>();
+        for (const batch of (await batchesResponse.json()) as BeanBatchRecord[]) {
+          const batches = byBean.get(batch.beanId);
+          if (batches) batches.push(batch);
+          else byBean.set(batch.beanId, [batch]);
+        }
+        return beans.map((bean) => ({ bean, batches: byBean.get(bean.id) ?? [] }));
+      }
+      if (batchesResponse.status !== 404 && batchesResponse.status !== 405) {
+        return beans.map((bean) => ({ bean, batches: [], batchesUnavailable: true }));
+      }
+      // Older Decaid releases only expose per-bean batch lists.
       const withBatches = await Promise.all(
         beans.map(async (bean) => {
-          const batches = await fetch(restUrl(`/beans/${bean.id}/batches?includeArchived=false`))
+          const batches = await fetch(restUrl(`/beans/${bean.id}/batches?includeArchived=false`), revalidate)
             .then(async (response): Promise<BeanBatchRecord[]> => {
               if (!response.ok) throw new Error(`Gateway returned ${response.status}`);
               return response.json();
@@ -57,6 +75,7 @@ export function useBeans() {
       return withBatches;
     },
     staleTime: 30_000,
+    refetchInterval: live ? 5_000 : false,
   });
 }
 
