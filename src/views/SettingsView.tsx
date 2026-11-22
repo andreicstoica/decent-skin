@@ -18,8 +18,10 @@ import { WakeSchedules } from "../components/WakeSchedules";
 
 declare global {
   interface Window {
+    __DECENT_HOST__?: unknown;
     decentApp?: {
       switchSkin?: (skinId: string) => boolean;
+      exitToDashboard?: () => void;
     };
   }
 }
@@ -160,23 +162,32 @@ function CubbyUpdates() {
   const save = useSaveDecaidSettings();
   const check = useMutation({
     mutationFn: async (): Promise<SkinUpdateResult[] | null> => {
-      const response = await fetch(restUrl("/webui/skins/update"), { method: "POST" });
+      const response = await fetch(restUrl("/webui/skins/update"), {
+        method: "POST",
+        redirect: "error",
+        headers: { Accept: "application/json" },
+      });
       if (response.status === 401 || response.status === 403) {
         throw new Error("Decaid blocked this check. Use Skins → Check for updates in the Decaid launcher.");
       }
       if (!response.ok) throw new Error("Could not check for updates. Try again from the Decaid launcher.");
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Decaid did not return an update status. Check from the Decaid launcher.");
+      }
       const body = (await response.json()) as { results?: SkinUpdateResult[] };
       return body.results ?? null;
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ["decaid-skins"] }),
   });
-  const updated = check.data?.filter(({ status }) => status === "updated").length ?? 0;
+  const cubby = check.data?.find(({ item }) => item === "decent-skin");
   const failures = check.data?.filter(({ status }) => status === "failed") ?? [];
-  const summary = updated > 0
-    ? `${updated} ${updated === 1 ? "skin updated" : "skins updated"}.`
-    : check.data?.length && !failures.length
-      ? "No new skin updates."
-      : !failures.length ? "Check complete. Only skins installed from an update source can be checked." : null;
+  const summary = cubby?.status === "updated"
+    ? "Cubby updated. Reopen it to load the new version."
+    : cubby?.status === "alreadyCurrent"
+      ? "Cubby is up to date."
+      : cubby ? null : check.data
+        ? "Decaid did not report an update status for Cubby. Make sure it was installed via GitHub Release."
+        : "Check complete. This version of Decaid did not report individual skin results.";
 
   return (
     <Group title="Cubby">
@@ -194,24 +205,32 @@ function CubbyUpdates() {
           <span className="row__title">Skin updates</span>
           <span className="row__sub">Decaid checks and installs updates for all skins with an update source.</span>
         </div>
-        <button type="button" className="btn btn--quiet btn--compact" disabled={check.isPending} onClick={() => check.mutate()}>
-          {check.isPending ? "Checking…" : "Check for updates"}
+        <button
+          type="button"
+          className="btn btn--quiet btn--compact"
+          aria-disabled={check.isPending}
+          onClick={() => { if (!check.isPending) check.mutate(); }}
+        >
+          Check for updates
         </button>
       </div>
       {save.isError && <p className="err" role="alert">Could not change automatic updates. Try in the Decaid launcher.</p>}
-      {check.isError && (
-        <p className="err" role="alert">
-          {check.error instanceof TypeError
-            ? "Could not reach the update service from Cubby. Try in the Decaid launcher."
-            : check.error.message}
-        </p>
-      )}
-      {check.isSuccess && (
-        <div role="status">
-          {summary && <p className="row__sub">{summary}</p>}
-          {failures.map(({ item, error }) => <p className="err" key={item}>{item}: {error ?? "Update failed."}</p>)}
-        </div>
-      )}
+      <div className="skin-update-status" role="status">
+        {check.isPending && <p className="row__sub">Checking…</p>}
+        {check.isError && (
+          <p className="err">
+            {check.error instanceof TypeError
+              ? "Could not reach the update service from Cubby. Try in the Decaid launcher."
+              : check.error.message}
+          </p>
+        )}
+        {check.isSuccess && (
+          <>
+            {summary && <p className="row__sub">{summary}</p>}
+            {failures.map(({ item, error }) => <p className="err" key={item}>{item === "decent-skin" ? "Cubby" : item}: {error ?? "Update failed."}</p>)}
+          </>
+        )}
+      </div>
     </Group>
   );
 }
@@ -226,7 +245,6 @@ function SkinSwitcher() {
     staleTime: 60_000,
   });
 
-  const embedded = typeof window.decentApp?.switchSkin === "function";
   const others = (skins ?? []).filter((s) => s.id !== "decent-skin");
 
   const openSkin = async (skinId: string) => {
@@ -246,10 +264,8 @@ function SkinSwitcher() {
     }
   };
 
-  if (!others.length) return null;
-
   return (
-    <Group title="Switch skin">
+    <Group title="Decaid launcher">
       <div className="skins__row">
         {others.map((s) => (
           <button
@@ -261,16 +277,17 @@ function SkinSwitcher() {
             {s.name}
           </button>
         ))}
-        {!embedded && (
-          <a
-            className="btn btn--quiet"
-            href={`${window.location.protocol}//${window.location.hostname}:8080/api/v1/plugins/settings.reaplugin/ui`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Decaid settings
-          </a>
-        )}
+        <a
+          className="btn btn--quiet"
+          href={restUrl("/plugins/settings.reaplugin/ui?backName=Cubby")}
+          onClick={(event) => {
+            if (!window.__DECENT_HOST__ || !window.decentApp?.exitToDashboard) return;
+            event.preventDefault();
+            window.decentApp.exitToDashboard();
+          }}
+        >
+          Decaid settings
+        </a>
       </div>
     </Group>
   );
