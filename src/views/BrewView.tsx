@@ -251,9 +251,6 @@ function InCup({
     <div className="read__cell read__cell--cup">
       <div className="read__l read__l--cup">
         <span className="lbl">{needsScale ? "Connect scale" : "In cup g"}</span>
-        {pulling && target != null && target > 0 && (
-          <span className="row__sub num">Target {target} g</span>
-        )}
         {note && (
           <span className="lbl lbl--note" role="status" aria-live="polite">
             {note}
@@ -269,7 +266,16 @@ function InCup({
           </button>
         ) : (
           <>
-            <span className="read__v num read__v--weight">{weight === null ? "—" : weight.toFixed(1)}</span>
+            <span className="read__v num read__v--weight" aria-label={
+              pulling && target != null && target > 0
+                ? `${weight === null ? "no weight" : `${weight.toFixed(1)} grams`}, target ${target} grams`
+                : undefined
+            }>
+              {weight === null ? "—" : pulling && target != null && target > 0 ? `${weight.toFixed(1)}g` : weight.toFixed(1)}
+              {pulling && target != null && target > 0 && (
+                <span className="read__target"> / {target}g</span>
+              )}
+            </span>
             {!pulling && <button type="button" className="tare" onClick={onTare} disabled={tare.isPending}>Tare</button>}
           </>
         )}
@@ -504,14 +510,18 @@ export function BrewView({
         duration={utility === "steam" ? workflow?.steamSettings?.duration : workflow?.hotWaterData?.duration}
         flushLeft={flushLeft} weight={scaleConnected ? weight : null} onStop={() => void stop()}
         stopping={stopping} stopError={stopError} /> : <div className="live">
-        <div className="read">
-          <Read slot="time" label={<span className="lbl">{PHASE[snapshot.state.substate] ?? "Time"} s</span>} value={elapsed.toFixed(1)} />
-          <InCup weight={weight} connected={scaleConnected} pulling={pulling} target={ctx?.targetYield} />
-          <Read slot="pressure" label={<span className="lbl">Pressure bar</span>} value={snapshot.pressure.toFixed(1)} channel="pressure" />
-          <Read slot="flow" label={<span className="lbl">Flow mL/s</span>} value={snapshot.flow.toFixed(1)} channel="flow" />
-          <Read slot="weight" label={<span className="lbl">Weight flow g/s</span>} value={weightFlow?.toFixed(1) ?? "—"} channel="weight" />
-        </div>
-        <BrewGraph workflow={workflow} trace={trace} live={pulling} elapsed={elapsed} timestamp={snapshot.timestamp} />
+        <BrewGraph workflow={workflow} trace={trace} live={pulling} elapsed={elapsed} timestamp={snapshot.timestamp}>
+          {(ghost) => (
+            <div className="read">
+              <Read slot="time" label={<span className="lbl">{PHASE[snapshot.state.substate] ?? "Time"} s</span>} value={elapsed.toFixed(1)} />
+              <InCup weight={weight} connected={scaleConnected} pulling={pulling} target={ctx?.targetYield} />
+              {ghost}
+              <Read slot="pressure" label={<span className="lbl">Pressure bar</span>} value={snapshot.pressure.toFixed(1)} channel="pressure" />
+              <Read slot="flow" label={<span className="lbl">Flow mL/s</span>} value={snapshot.flow.toFixed(1)} channel="flow" />
+              <Read slot="weight" label={<span className="lbl">Weight flow g/s</span>} value={weightFlow?.toFixed(1) ?? "—"} channel="weight" />
+            </div>
+          )}
+        </BrewGraph>
       </div>}
     </div>
   );

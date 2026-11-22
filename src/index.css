@@ -578,9 +578,36 @@ button, input, textarea, select { touch-action: manipulation; }
   grid-column: 2;
   align-self: center;
   display: inline-flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 0;
 }
+.read__target {
+  color: hsl(var(--muted));
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.read__ghost {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: hsl(var(--muted));
+  background: none;
+  cursor: pointer;
+}
+.read__ghost[aria-pressed="true"] .chart__ghost-icon { color: hsl(var(--accent-text)); border-color: hsl(var(--accent-text)); }
+.read__ghost:not(:disabled):hover .chart__ghost-icon { border-color: currentColor; }
+.read__ghost:disabled { opacity: 0.5; cursor: default; }
+.read__ghost:focus-visible { outline: 2px solid hsl(var(--accent-text)); outline-offset: 2px; }
 .lbl--note {
   position: absolute;
   left: 0;
@@ -691,17 +718,10 @@ button, input, textarea, select { touch-action: manipulation; }
 .chart__box { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .chart__svg { display: block; }
 .chart__tick { font-family: var(--font-mono); font-size: 10px; fill: hsl(var(--muted)); font-variant-numeric: tabular-nums; }
-/* Floating controls sit inside the plot. The ghost glyph starts below the top
-   tick and to the right of the y-axis labels; the legend stays in the top-right.
-   Neither takes a row, so the plot keeps its full height. */
+/* Legend only. The ghost toggle lives in the readout row, so the plot
+   keeps its full height and has no control drawn on top of it. */
 .chart__overlay { position: absolute; inset: 0; pointer-events: none; }
-.chart__controls { position: absolute; top: 22px; left: 38px; }
-.chart__ghost-toggle { pointer-events: auto; display: grid; place-items: start center; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: var(--radius-sm); color: hsl(var(--muted)); background: none; cursor: pointer; }
 .chart__ghost-icon { display: grid; place-items: center; width: 18px; height: 18px; background: hsl(var(--bg)); border: 1px solid hsl(var(--rule)); border-radius: var(--radius-sm); }
-.chart__ghost-toggle[aria-pressed="true"] .chart__ghost-icon { color: hsl(var(--accent-text)); border-color: hsl(var(--accent-text)); }
-.chart__ghost-toggle:not(:disabled):hover .chart__ghost-icon { border-color: currentColor; }
-.chart__ghost-toggle:disabled { opacity: 0.5; cursor: default; }
-.chart__ghost-toggle:focus-visible { outline: 2px solid hsl(var(--accent-text)); outline-offset: -2px; }
 .chart__legend { position: absolute; top: 16px; right: 8px; display: flex; gap: calc(var(--band) / 2); padding: 0 4px; background: hsl(var(--bg)); color: hsl(var(--muted)); font-size: 10px; line-height: 14px; white-space: nowrap; }
 .chart__legend > span { display: inline-flex; align-items: center; gap: calc(var(--band) / 4); }
 .chart__sample { width: 10px; border-top: 2px solid currentColor; }
@@ -1776,7 +1796,8 @@ button, input, textarea, select { touch-action: manipulation; }
    the three channels on rows 3-4. */
 @media (max-width: 1000px) {
   .read { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; }
-  .read__cell--cup > * { grid-column: 2 / span 2; }
+  .read__cell--cup > * { grid-column: 2; }
+  .read__ghost { grid-column: 3; margin-right: 0; }
   .read__cell--pressure > *, .read__cell--flow > *, .read__cell--weight > * { justify-self: start; }
   .read__cell--pressure > * { grid-column: 1; }
   .read__cell--flow > * { grid-column: 2; }
