@@ -512,12 +512,6 @@ export function BrewView({
           <Read slot="weight" label={<span className="lbl">Weight flow g/s</span>} value={weightFlow?.toFixed(1) ?? "—"} channel="weight" />
         </div>
         <BrewGraph workflow={workflow} trace={trace} live={pulling} elapsed={elapsed} timestamp={snapshot.timestamp} />
-        {pulling && <div className="utility-readout__actions">
-          {stopError && <p className="err" role="alert">{stopError}</p>}
-          <button type="button" className="utility-readout__stop" disabled={stopping} onClick={() => void stop()}>
-            {stopping ? "Stopping…" : "Stop espresso"}
-          </button>
-        </div>}
       </div>}
     </div>
   );

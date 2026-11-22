@@ -62,15 +62,11 @@ export const ShotChart = memo(function ShotChart({ trace, label = "Live shot tra
   const lastTime = (points: TracePoint[]) => points.reduce((last, p) => finite(p.t) ? Math.max(last, p.t) : last, 0);
   const last = Math.max(lastTime(trace), lastTime(ghost));
   const span = live || fixedTime || !last ? timeSpan(last, initialTimeSpan(profile)) : Math.max(1, last);
-  // Ghost control and legend sit on the top edge of the box. Keep the highest
-  // tick, its label, and the top gridline below that row. History charts have
-  // neither, so they keep the tighter margin.
-  const padTop = controls || showLegend ? 32 : PAD.top;
   const plotW = Math.max(0, width - PAD.left - PAD.right);
-  const plotH = Math.max(0, height - padTop - PAD.bottom);
+  const plotH = Math.max(0, height - PAD.top - PAD.bottom);
   const xStep = tickStep(span, Math.max(2, Math.min(8, Math.floor(plotW / 45))));
   const x = (t: number) => PAD.left + (t / span) * plotW;
-  const y = (v: number) => padTop + plotH - ((v - min) / (max - min)) * plotH;
+  const y = (v: number) => PAD.top + plotH - ((v - min) / (max - min)) * plotH;
 
   const path = (points: TracePoint[], key: SeriesKey) => {
     let d = "", connected = false, previous = -Infinity;
@@ -98,7 +94,7 @@ export const ShotChart = memo(function ShotChart({ trace, label = "Live shot tra
               "Solid lines are measured. Dashed colored lines are pump targets. Faint dotted lines, when enabled, are the previous matching completed shot." :
               planned.length ? "Dashed lines show planned pressure or flow; exits can shorten steps. Planned smooth transitions show only goal markers, not predicted ramps." :
               "Solid lines are measured. Dashed colored lines are pump targets."}</desc>
-            <defs><clipPath id={clipId}><rect x={PAD.left} y={padTop - 3} width={plotW + 1} height={plotH + 6} /></clipPath></defs>
+            <defs><clipPath id={clipId}><rect x={PAD.left} y={PAD.top - 3} width={plotW + 1} height={plotH + 6} /></clipPath></defs>
             {Array.from({ length: Math.round((max - min) / yStep) + 1 }, (_, i) => min + i * yStep).map((v) => (
               <g key={v}>
                 <line x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)} stroke="hsl(var(--rule))" strokeWidth={1} />
@@ -110,7 +106,7 @@ export const ShotChart = memo(function ShotChart({ trace, label = "Live shot tra
             ))}
             <g clipPath={`url(#${clipId})`}>
               {steps.map((p, i) => (
-                <line key={i} x1={x(p.t)} x2={x(p.t)} y1={padTop} y2={padTop + plotH} stroke="hsl(var(--rule-strong))" strokeDasharray="2 4">
+                <line key={i} x1={x(p.t)} x2={x(p.t)} y1={PAD.top} y2={PAD.top + plotH} stroke="hsl(var(--rule-strong))" strokeDasharray="2 4">
                   <title>{profile?.steps[p.profileFrame!]?.name || `Profile step ${p.profileFrame! + 1}`}</title>
                 </line>
               ))}

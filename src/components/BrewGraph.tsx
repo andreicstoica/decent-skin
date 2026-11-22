@@ -60,7 +60,6 @@ export function BrewGraph({ workflow, trace, live, elapsed, timestamp }: {
               </svg>
             </span>
           </button>
-          {comparing && <span className="chart__ghost-status" aria-hidden="true" title={status}>{unavailable?.short ?? source}</span>}
           <span className="sr-only" id={ghostStatusId} role="status">{status}</span>
         </div>
       )}

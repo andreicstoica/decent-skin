@@ -691,18 +691,18 @@ button, input, textarea, select { touch-action: manipulation; }
 .chart__box { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .chart__svg { display: block; }
 .chart__tick { font-family: var(--font-mono); font-size: 10px; fill: hsl(var(--muted)); font-variant-numeric: tabular-nums; }
-/* Align the overlay to the plot, leaving the y-axis labels unobstructed.
-   Only the ghost glyph is visible, but its button keeps the standard tap size. */
-.chart__overlay { position: absolute; inset: 0 16px auto 30px; display: flex; align-items: flex-start; justify-content: space-between; gap: calc(var(--band) / 2); pointer-events: none; }
-.chart__controls { display: flex; align-items: flex-start; min-width: 0; }
-.chart__ghost-toggle { pointer-events: auto; flex: none; display: grid; place-items: start center; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: var(--radius-sm); color: hsl(var(--muted)); background: none; cursor: pointer; }
+/* Floating controls sit inside the plot. The ghost glyph starts below the top
+   tick and to the right of the y-axis labels; the legend stays in the top-right.
+   Neither takes a row, so the plot keeps its full height. */
+.chart__overlay { position: absolute; inset: 0; pointer-events: none; }
+.chart__controls { position: absolute; top: 22px; left: 38px; }
+.chart__ghost-toggle { pointer-events: auto; display: grid; place-items: start center; width: var(--hit); height: var(--hit); padding: 0; border: 0; border-radius: var(--radius-sm); color: hsl(var(--muted)); background: none; cursor: pointer; }
 .chart__ghost-icon { display: grid; place-items: center; width: 18px; height: 18px; background: hsl(var(--bg)); border: 1px solid hsl(var(--rule)); border-radius: var(--radius-sm); }
 .chart__ghost-toggle[aria-pressed="true"] .chart__ghost-icon { color: hsl(var(--accent-text)); border-color: hsl(var(--accent-text)); }
 .chart__ghost-toggle:not(:disabled):hover .chart__ghost-icon { border-color: currentColor; }
 .chart__ghost-toggle:disabled { opacity: 0.5; cursor: default; }
 .chart__ghost-toggle:focus-visible { outline: 2px solid hsl(var(--accent-text)); outline-offset: -2px; }
-.chart__ghost-status { min-width: 0; color: hsl(var(--muted)); font-size: 10px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chart__legend { flex: none; display: flex; gap: calc(var(--band) / 2); margin-left: auto; color: hsl(var(--muted)); font-size: 10px; line-height: 14px; white-space: nowrap; }
+.chart__legend { position: absolute; top: 16px; right: 8px; display: flex; gap: calc(var(--band) / 2); padding: 0 4px; background: hsl(var(--bg)); color: hsl(var(--muted)); font-size: 10px; line-height: 14px; white-space: nowrap; }
 .chart__legend > span { display: inline-flex; align-items: center; gap: calc(var(--band) / 4); }
 .chart__sample { width: 10px; border-top: 2px solid currentColor; }
 .chart__sample--target { border-top-style: dashed; }
