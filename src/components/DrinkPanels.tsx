@@ -1,7 +1,12 @@
 import { useId, useState } from "react";
 import type { SteamPreset, WaterPreset } from "../api/useDrinkPresets";
 import { useUpdateWorkflow, useWorkflow } from "../api/useWorkflow";
-import { NumberStepper } from "./Stepper";
+import { NumberStepper, Stepper } from "./Stepper";
+import { useCountdown } from "../api/useCountdown";
+import { useFlushPresets } from "../api/useFlushPresets";
+import { clamp, round } from "./nudge";
+import "./FlushPanel.css";
+import "./UtilityReadout.css";
 import {
   FLUSH_RANGE,
   matchesSteamPreset,
@@ -171,86 +176,101 @@ export function WaterPanel() {
   );
 }
 
-const FLUSH_PRESETS = [
-  { id: "quick", label: "Quick", targetTemperature: 90, duration: 5, flow: 6 },
-  { id: "standard", label: "Standard", targetTemperature: 90, duration: 10, flow: 6 },
-] as const;
-
-export function FlushPanel({ flushing, left }: { flushing: boolean; left: number }) {
-  const { data: workflow } = useWorkflow();
-  const update = useUpdateWorkflow();
-  const rinse = workflow?.rinseData;
-  const [custom, setCustom] = useState(false);
-
-  const activePreset = custom
-    ? null
-    : FLUSH_PRESETS.find(
-        (p) =>
-          p.targetTemperature === rinse?.targetTemperature &&
-          p.duration === rinse?.duration &&
-          p.flow === rinse?.flow,
-      ) ?? null;
-  const isCustom = custom || !activePreset;
+export function FlushPanel({ flushing }: { flushing: boolean }) {
+  const { presets, applied, activeId, mutation, failed } = useFlushPresets();
+  const busy = mutation.isPending || !presets;
+  const fields = [
+    { field: "targetTemperature", label: "Temp °C", range: FLUSH_RANGE.temp },
+    { field: "duration", label: "Duration s", range: FLUSH_RANGE.duration },
+    { field: "flow", label: "Flow mL/s", range: FLUSH_RANGE.flow },
+  ] as const;
 
   return (
-    <div className="drink">
+    <div className="drink drink--flush">
       <div className="presets" role="group" aria-label="Flush preset">
-        {FLUSH_PRESETS.map((p) => {
-          const on = !isCustom && activePreset?.id === p.id;
+        {(["quick", "standard", "custom"] as const).map((id) => (
+          <PresetCard
+            key={id}
+            label={id === "quick" ? "Quick" : id === "standard" ? "Standard" : "Custom"}
+            summary={presets?.[id] ? presetSummary(presets[id]) : undefined}
+            pressed={activeId === id}
+            disabled={flushing || busy}
+            onClick={() => mutation.mutate({ id })}
+          />
+        ))}
+      </div>
+      <div className="dials drink__dials flush__dials" aria-busy={busy}>
+        {fields.map(({ field, label, range }) => {
+          const value = applied?.[field];
+          // Use applied values without a deferred draft: starting a flush always
+          // uses the same duration displayed here and by BrewView's countdown.
+          const editable = !busy && value !== undefined && !(flushing && field === "duration");
+          const change = (dir: number) => value !== undefined && mutation.mutate({
+            id: activeId,
+            patch: { [field]: clamp(round(value + dir * range.step, range.places), range.min, range.max) },
+          });
           return (
-            <PresetCard
-              key={p.id}
-              label={p.label}
-              summary={presetSummary(p)}
-              pressed={on}
-              disabled={flushing}
-              onClick={() => {
-                setCustom(false);
-                update.mutate({
-                  rinseData: {
-                    targetTemperature: p.targetTemperature,
-                    duration: p.duration,
-                    flow: p.flow,
-                  },
-                });
-              }}
+            <Stepper key={field} label={label}
+              value={value === undefined ? "—" : value.toFixed(range.places)}
+              less={`Lower ${label}`} more={`Raise ${label}`}
+              onLess={editable && value > range.min ? () => change(-1) : undefined}
+              onMore={editable && value < range.max ? () => change(1) : undefined}
             />
           );
         })}
-        <PresetCard label="Custom" pressed={isCustom} onClick={() => setCustom(true)} />
       </div>
-
-      <div className="dials drink__dials">
-        <NumberStepper
-          label="Temp °C"
-          value={rinse?.targetTemperature}
-          range={FLUSH_RANGE.temp}
-          onCommit={(targetTemperature, settled) =>
-            update.mutate({ rinseData: { targetTemperature } }, { onSettled: settled })
-          }
-        />
-        {/* The countdown restarts when its length changes, so it is fixed mid-flush. */}
-        <NumberStepper
-          ruled
-          label="Duration s"
-          value={rinse?.duration}
-          range={FLUSH_RANGE.duration}
-          disabled={flushing}
-          onCommit={(duration, settled) => update.mutate({ rinseData: { duration } }, { onSettled: settled })}
-        />
-        <NumberStepper
-          ruled
-          label="Flow mL/s"
-          value={rinse?.flow}
-          range={FLUSH_RANGE.flow}
-          onCommit={(flow, settled) => update.mutate({ rinseData: { flow } }, { onSettled: settled })}
-        />
-      </div>
-      <div className="drink__live">
-        <span className="lbl">Time left s</span>
-        <span className="read__v num">{flushing && left > 0 ? Math.ceil(left) : "—"}</span>
-      </div>
-      {update.isError && <Failed />}
+      {failed && <p className="err" role="alert">Could not apply or save the flush settings. The controls show the current workflow values; try again.</p>}
     </div>
+  );
+}
+
+const utilityNames = { steam: "Steam", hotWater: "Water", flush: "Flush" } as const;
+
+export function UtilityReadout({ mode, running, duration, flushLeft, weight, onStop, stopping, stopError }: {
+  mode: keyof typeof utilityNames;
+  running: boolean;
+  duration?: number;
+  flushLeft: number;
+  weight: number | null;
+  onStop: () => void;
+  stopping?: boolean;
+  stopError?: string | null;
+}) {
+  const flush = mode === "flush";
+  const estimate = useCountdown(!flush && running, duration ?? 0);
+  const secondsLeft = flush ? flushLeft : estimate;
+  const hasTimer = running && (flush || (Number.isFinite(duration) && (duration ?? 0) > 0));
+  const timerLabel = flush ? "Time left" : "Est. time left";
+  // Decaid programs these timeouts on the DE1. An on-screen zero is not
+  // confirmation that the machine has stopped; keep Stop available until idle.
+  const finishing = hasTimer && secondsLeft <= 0;
+
+  return (
+    <section className="utility-readout" aria-label={`${utilityNames[mode]} readout`}>
+      <div className="utility-readout__metrics">
+        {mode === "hotWater" && (
+          <div className="utility-readout__metric">
+            <span className="lbl">In cup</span>
+            <span className="num utility-readout__number">{weight?.toFixed(1) ?? "—"}<span className="utility-readout__unit">g</span></span>
+          </div>
+        )}
+        <div className="utility-readout__metric utility-readout__timer" role="timer" aria-label={timerLabel}>
+          <span className="lbl">{timerLabel}</span>
+          <span className="num utility-readout__number">{hasTimer ? Math.max(0, Math.ceil(secondsLeft)) : "—"}<span className="utility-readout__unit">s</span></span>
+          {finishing && <span className="row__sub" role="status">Waiting for machine to stop…</span>}
+        </div>
+      </div>
+      {(running || stopError) && (
+        <div className="utility-readout__actions">
+          {stopError && <p className="err" role="alert">{stopError}</p>}
+          {running && (
+            <button type="button" className="utility-readout__stop" disabled={stopping}
+              onClick={onStop}>
+              {stopping ? "Stopping…" : `Stop ${utilityNames[mode]}`}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

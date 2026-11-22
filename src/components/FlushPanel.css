@@ -1,0 +1,24 @@
+/* Flush-only overrides: never stack the − / value / + controls. */
+.drink--flush .flush__dials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.drink--flush .flush__dials .dial {
+  flex: 1 1 245px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+.drink--flush .flush__dials .stepper {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+.drink--flush .flush__dials .stepper__v { text-align: center; }
+.drink--flush .flush__dials .step { width: var(--hit); flex-shrink: 0; }

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { restUrl } from "../api/gateway";
-import { ShotChart } from "../components/ShotChart";
+import { BrewGraph } from "../components/BrewGraph";
 import { NumberPadModal, type QuickPreset } from "../components/NumberPadModal";
 import { Stepper } from "../components/Stepper";
 import { clamp, round, useNudge } from "../components/nudge";
-import { FlushPanel, SteamPanel, WaterPanel } from "../components/DrinkPanels";
+import { FlushPanel, SteamPanel, UtilityReadout, WaterPanel } from "../components/DrinkPanels";
 import { useBeanBatch, useGrinder, useUpdateWorkflow, type Workflow } from "../api/useWorkflow";
 import { useProfiles, type ProfileRecord } from "../api/useProfiles";
 import { useFavorites, useSelectProfile } from "../api/useFavorites";
@@ -14,6 +14,7 @@ import type { TracePoint } from "../api/useShotTrace";
 import type { MachineSnapshot, MachineState, MachineSubstate } from "../api/types";
 import { useMachineSettings } from "../api/useDecaidSettings";
 import { useCountdown } from "../api/useCountdown";
+import { ConnectScaleIcon } from "../components/icons";
 
 const PHASE: Partial<Record<MachineSubstate, string>> = {
   preparingForShot: "Preparing",
@@ -214,8 +215,8 @@ function Grind({ setting, grinderId }: { setting?: string; grinderId?: string })
 const NOTE_MS = 3000;
 
 /**
- * The scale action sits on the label row beside the number it acts on: Connect
- * until a scale reports in, then Tare. Refusals replace the label briefly.
+ * Replace the empty readout with the connection action until a scale reports
+ * in. Once connected, keep tare beside the number it acts on.
  */
 function InCup({
   weight,
@@ -245,6 +246,21 @@ function InCup({
     });
   const onConnect = () => connect.mutate(undefined, { onError: () => setNote("Scan failed") });
 
+  if (!connected && !pulling) {
+    return (
+      <div className="read__cell read__cell--cup">
+        <div className="read__cup-row read__cup-row--connect">
+          <button type="button" className="tare tare--icon" onClick={onConnect}
+            disabled={connect.isPending} aria-label={connect.isPending ? "Connecting scale" : "Connect scale"}
+            title={connect.isPending ? "Connecting scale" : "Connect scale"}>
+            <ConnectScaleIcon />
+          </button>
+          {(note || connect.isPending) && <span className="row__sub" role="status">{note ?? "Connecting…"}</span>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="read__cell read__cell--cup">
       <div className="read__l read__l--cup">
@@ -262,16 +278,9 @@ function InCup({
         <span className="read__v num read__v--weight">
           {weight === null ? "—" : weight.toFixed(1)}
         </span>
-        {!pulling &&
-          (connected ? (
-            <button type="button" className="tare" onClick={onTare} disabled={tare.isPending}>
-              Tare
-            </button>
-          ) : (
-            <button type="button" className="tare" onClick={onConnect} disabled={connect.isPending}>
-              {connect.isPending ? "Connecting…" : "Connect scale"}
-            </button>
-          ))}
+        {!pulling && <button type="button" className="tare" onClick={onTare} disabled={tare.isPending}>
+          Tare
+        </button>}
       </div>
     </div>
   );
@@ -387,29 +396,50 @@ export function BrewView({
   const { data: machine } = useMachineSettings();
   const state = snapshot.state.state;
   const flushing = state === "flush";
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
+  const stopInFlight = useRef(false);
 
   const [pane, setPane] = useState<Mode>("espresso");
   // Follow a mode started at the group head, once, so the bar can still move away.
   const [seen, setSeen] = useState(state);
   if (seen !== state) {
     setSeen(state);
+    setStopError(null);
     if (isMode(state)) setPane(state);
   }
 
-  const run = (mode: MachineState) =>
-    void fetch(restUrl(`/machine/state/${mode}`), { method: "PUT" });
+  const stop = async () => {
+    if (stopInFlight.current || !isMode(state)) return;
+    stopInFlight.current = true;
+    setStopping(true);
+    setStopError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(restUrl("/machine/state/idle"), { method: "PUT", signal: controller.signal });
+      if (!response.ok) throw new Error(`Gateway returned ${response.status}`);
+    } catch {
+      setStopError("Could not confirm Stop. Use the machine’s controls if it is still running.");
+    } finally {
+      window.clearTimeout(timeout);
+      stopInFlight.current = false;
+      setStopping(false);
+    }
+  };
 
   // The panel's flush length is the one the skin enforces; the machine setting is the fallback.
   const flushSeconds = workflow?.rinseData?.duration ?? machine?.flushTimeout ?? 0;
-  const flushLeft = useCountdown(flushing, flushSeconds, () => run("idle"));
+  const flushLeft = useCountdown(flushing, flushSeconds, () => void stop());
 
   const pulling = state === "espresso";
-  const showTrace = pulling || pane === "espresso";
+  const utility = isMode(state) && state !== "espresso" ? state : pane !== "espresso" && !pulling ? pane : null;
+  const showTrace = utility === null;
   const beanMeta = [ctx?.coffeeRoaster, roast].filter(Boolean).join(" · ");
 
   return (
     <div className={`brew ${pulling ? "brew--pulling" : ""} ${showTrace ? "" : "brew--utility"}`}>
-      <div className="deck" aria-hidden={pulling || undefined}>
+      <div className="deck" aria-hidden={pulling || undefined} inert={pulling}>
         <div className="deck__top">
           <button
             type="button"
@@ -439,12 +469,11 @@ export function BrewView({
                   className={`modebar__b ${running ? "modebar__b--run" : shown ? "modebar__b--on" : ""}`}
                   aria-pressed={shown}
                   aria-label={running ? `Stop ${mode.label.toLowerCase()}` : undefined}
-                  onClick={() => (running ? run("idle") : setPane(mode.state))}
+                  disabled={running && stopping}
+                  onClick={() => (running ? void stop() : setPane(mode.state))}
                 >
-                  {running && mode.state === "flush" && flushLeft > 0 ? (
-                    <span className="num">{Math.ceil(flushLeft)}s</span>
-                  ) : running ? (
-                    "Stop"
+                  {running ? (
+                    stopping ? "Stopping…" : "Stop"
                   ) : (
                     mode.label
                   )}
@@ -474,12 +503,15 @@ export function BrewView({
           ) : pane === "hotWater" ? (
             <WaterPanel />
           ) : (
-            <FlushPanel flushing={flushing} left={flushLeft} />
+            <FlushPanel flushing={flushing} />
           )}
         </div>
       </div>
 
-      <div className="live">
+      {utility ? <UtilityReadout key={utility} mode={utility} running={state === utility}
+        duration={utility === "steam" ? workflow?.steamSettings?.duration : workflow?.hotWaterData?.duration}
+        flushLeft={flushLeft} weight={scaleConnected ? weight : null} onStop={() => void stop()}
+        stopping={stopping} stopError={stopError} /> : <div className="live">
         <div className="read">
           <Read slot="time" label={<span className="lbl">{PHASE[snapshot.state.substate] ?? "Time"} s</span>} value={elapsed.toFixed(1)} />
           <InCup weight={weight} connected={scaleConnected} pulling={pulling} target={ctx?.targetYield} />
@@ -487,8 +519,14 @@ export function BrewView({
           <Read slot="flow" label={<span className="lbl">Flow mL/s</span>} value={snapshot.flow.toFixed(1)} channel="flow" />
           <Read slot="weight" label={<span className="lbl">Weight flow g/s</span>} value={weightFlow?.toFixed(1) ?? "—"} channel="weight" />
         </div>
-        {showTrace && <ShotChart trace={trace} live={pulling} />}
-      </div>
+        <BrewGraph workflow={workflow} trace={trace} live={pulling} elapsed={elapsed} timestamp={snapshot.timestamp} />
+        {pulling && <div className="utility-readout__actions">
+          {stopError && <p className="err" role="alert">{stopError}</p>}
+          <button type="button" className="utility-readout__stop" disabled={stopping} onClick={() => void stop()}>
+            {stopping ? "Stopping…" : "Stop espresso"}
+          </button>
+        </div>}
+      </div>}
     </div>
   );
 }

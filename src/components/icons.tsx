@@ -26,6 +26,13 @@ export const SlidersIcon = () => (
   </svg>
 );
 
+export const ConnectScaleIcon = () => (
+  <svg {...base}>
+    <rect x="3" y="10" width="18" height="10" rx="2" />
+    <path d="M9 14h6M12 2v5M9.5 4.5h5" />
+  </svg>
+);
+
 /** Pinned favorites. Filled when pinned so state reads without color alone. */
 export const StarIcon = ({ filled = false }: { filled?: boolean }) => (
   <svg {...base} width={18} height={18} fill={filled ? "currentColor" : "none"}>

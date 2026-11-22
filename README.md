@@ -19,6 +19,8 @@ npm ci
 npm run dev
 ```
 
+Run `npm test` for the fixture tests (Node 22+), and `npm run lint` before submitting changes.
+
 The skin connects to Decaid on port `8080` of the same host. For a development gateway on another host, copy `.env.example` to `.env.local` and set `VITE_GATEWAY_URL`. Leave that override unset when building for distribution.
 
 ## Build an installable release

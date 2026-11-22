@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "./gateway";
+import { saveShotBean, type ShotBeanSelection } from "./shotBean";
 
 export interface ShotContext {
-  beanBatchId?: string;
+  beanBatchId?: string | null;
   coffeeName?: string;
   coffeeRoaster?: string;
   grinderModel?: string;
@@ -66,8 +67,9 @@ export function useShot(id: string | null) {
   return useQuery({
     queryKey: ["shot", id],
     queryFn: async (): Promise<ShotDetail | null> => {
-      const res = await fetch(restUrl(`/shots/${id}`));
-      return res.ok ? ((await res.json()) as ShotDetail) : null;
+      const res = await fetch(restUrl(`/shots/${encodeURIComponent(id!)}`));
+      if (!res.ok) throw new Error(`Could not load shot (${res.status})`);
+      return (await res.json()) as ShotDetail;
     },
     enabled: !!id,
   });
@@ -101,6 +103,19 @@ export function useAnnotate(id: string | null) {
       client.invalidateQueries({ queryKey: ["shot", id] });
       client.invalidateQueries({ queryKey: ["shots"] });
     },
+  });
+}
+
+export function useReassignShotBean(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (selection: ShotBeanSelection) =>
+      saveShotBean(restUrl(`/shots/${encodeURIComponent(id)}`), id, selection),
+    // Refresh even after an ambiguous response: the server may have saved it.
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: ["shot", id] }),
+      client.invalidateQueries({ queryKey: ["shots"] }),
+    ]),
   });
 }
 

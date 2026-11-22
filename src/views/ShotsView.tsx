@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { endedEarly, stopLabel, useShots } from "../api/useShots";
 import { useBeans, type Bean } from "../api/useBeans";
 import { fromDecaidEnjoyment } from "../api/tasteVocab";
@@ -14,6 +14,17 @@ export function ShotsView() {
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState({ roaster: "", bean: "", active: false, instant: false });
   const beanFiltersId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const listScroll = useRef(0);
+  const lastOpened = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!open && panel.current) {
+      panel.current.scrollTop = listScroll.current;
+      const button = Array.from(panel.current.querySelectorAll<HTMLButtonElement>("[data-shot-id]"))
+        .find(element => element.dataset.shotId === lastOpened.current);
+      button?.focus({ preventScroll: true });
+    }
+  }, [open]);
 
   // Resolve current bean name/roaster by beanBatchId so renaming a bag updates
   // past shots and filter pills immediately without mutating Decaid's snapshot.
@@ -74,7 +85,7 @@ export function ShotsView() {
   }
 
   return (
-    <div className="panel">
+    <div className="panel" ref={panel}>
       <div className="shots__filters">
         <div className="shots__filter" role="group" aria-label="Filter by roaster">
           <button
@@ -140,7 +151,11 @@ export function ShotsView() {
           const when = new Date(shot.timestamp);
           const profile = shot.workflow?.profile?.title;
           return (
-            <button type="button" className="shot" key={shot.id} onClick={() => setOpen(shot.id)}>
+            <button type="button" className="shot" key={shot.id} data-shot-id={shot.id} onClick={() => {
+              listScroll.current = panel.current?.scrollTop ?? 0;
+              lastOpened.current = shot.id;
+              setOpen(shot.id);
+            }}>
               <span className="shot__when">
                 <span className="shot__date">{when.toLocaleDateString(undefined, DATE)}</span>
                 <span className="row__sub num">{when.toLocaleTimeString(undefined, TIME)}</span>

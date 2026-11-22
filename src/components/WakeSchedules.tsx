@@ -61,17 +61,24 @@ export function WakeSchedules() {
       ) : (
         <>
           {schedules.data?.map((schedule) => (
-            <div className="field" key={schedule.id}>
+            <div className="field wake-schedule__row" key={schedule.id}>
               <div className="field__label">
-                <span className="row__title num">{schedule.time}</span>
+                <div className="wake-schedule__state">
+                  <span className="row__title num">{schedule.time}</span>
+                  <span className={`tag ${schedule.enabled ? "tag--on" : "tag--quiet"}`}>
+                    {schedule.enabled ? "On" : "Off"}
+                  </span>
+                </div>
                 <span className="row__sub">{describeDays(schedule.daysOfWeek)}</span>
               </div>
               <div className="toolbar__acts">
-                <button type="button" className="btn btn--quiet btn--compact" aria-pressed={schedule.enabled}
-                  aria-label={`Wake at ${schedule.time}, ${describeDays(schedule.daysOfWeek)}`}
+                <button type="button" className="btn btn--quiet btn--compact"
+                  aria-label={`Turn ${schedule.enabled ? "off" : "on"} wake at ${schedule.time}, ${describeDays(schedule.daysOfWeek)}`}
                   disabled={change.isPending}
                   onClick={() => change.mutate({ kind: "toggle", id: schedule.id, enabled: !schedule.enabled })}>
-                  {schedule.enabled ? "On" : "Off"}
+                  {change.isPending && change.variables.kind === "toggle" && change.variables.id === schedule.id
+                    ? "Saving…"
+                    : schedule.enabled ? "Turn off" : "Turn on"}
                 </button>
                 <button type="button" className={`btn btn--compact ${removing === schedule.id ? "btn--danger" : "btn--quiet"}`}
                   disabled={change.isPending}

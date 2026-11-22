@@ -1,36 +1,43 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 /**
- * Counts down while `active` and calls `onDone` once at zero. The DE1 firmware
- * is expected to end a flush on its own, but the simulator does not, so the
- * caller closes the loop; on hardware that stops it the extra call is a no-op.
+ * Counts down from when we first observe the machine running. Changes to the
+ * configured duration move the deadline without resetting elapsed time.
+ * Only modes with an explicit software fallback supply `onDone`.
  */
 export function useCountdown(active: boolean, seconds: number, onDone?: () => void) {
   const [remaining, setRemaining] = useState(0);
-  const done = useRef(onDone);
-  done.current = onDone;
+  const startedAt = useRef<number | null>(null);
+  const fired = useRef(false);
+  const done = useEffectEvent(() => onDone?.());
 
   useEffect(() => {
-    if (!active || !Number.isFinite(seconds) || seconds <= 0) {
-      setRemaining(0);
+    if (!active) {
+      startedAt.current = null;
+      fired.current = false;
       return;
     }
-    const endsAt = Date.now() + seconds * 1000;
-    setRemaining(seconds);
-    let fired = false;
+    const start = startedAt.current ?? performance.now();
+    startedAt.current = start;
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    let interval: number | undefined;
 
-    const tick = window.setInterval(() => {
-      const left = Math.max(0, (endsAt - Date.now()) / 1000);
+    const tick = () => {
+      const left = Math.max(0, seconds - (performance.now() - start) / 1000);
       setRemaining(left);
-      if (left === 0 && !fired) {
-        fired = true;
-        window.clearInterval(tick);
-        done.current?.();
+      if (left === 0) {
+        window.clearInterval(interval);
+        if (!fired.current) {
+          fired.current = true;
+          done();
+        }
       }
-    }, 100);
+      return left;
+    };
 
-    return () => window.clearInterval(tick);
+    if (tick() > 0) interval = window.setInterval(tick, 100);
+    return () => window.clearInterval(interval);
   }, [active, seconds]);
 
-  return remaining;
+  return active && Number.isFinite(seconds) && seconds > 0 ? remaining : 0;
 }

@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { stopLabel, useAnnotate, useShot, type Annotations } from "../api/useShots";
+import { stopLabel, useAnnotate, useShot, useReassignShotBean, type Annotations } from "../api/useShots";
 import { useBeans } from "../api/useBeans";
 import { ENJOYMENT, TASTE, fromDecaidEnjoyment, toDecaidEnjoyment } from "../api/tasteVocab";
 import { ShotChart } from "../components/ShotChart";
@@ -63,9 +63,13 @@ const MEASURES = [
 ] as const;
 
 export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void }) {
-  const { data: shot } = useShot(id);
+  const { data: shot, isError, isLoading, refetch } = useShot(id);
 
-  if (!shot) return <div className="panel" />;
+  if (!shot) return <div className="panel"><div className="sheet detail">
+    <button type="button" className="btn detail__back" onClick={onBack}>‹ All shots</button>
+    <p role={isError ? "alert" : "status"}>{isLoading ? "Loading shot…" : "Could not load this shot."}</p>
+    {isError && <button type="button" className="btn" onClick={() => void refetch()}>Try again</button>}
+  </div></div>;
 
   // A fresh editor per saved state: the draft starts from what Decaid holds and
   // resets after a save lands. The panel stays outside the key so the scroll
@@ -112,6 +116,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
           })}
         </time>
       </header>
+      <ShotBeanEditor shot={shot} />
       <div className="facts">
         <Fact label="Roaster" value={coffeeRoaster ?? "—"} />
         <Fact label="Profile" value={shot.workflow?.profile?.title ?? "—"} />
@@ -232,4 +237,70 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
       </section>
     </div>
   );
+}
+
+/** Separate draft from the rating editor, so changing coffee never saves or
+ * discards an unfinished rating. No active brew workflow or bag stock changes. */
+function ShotBeanEditor({ shot }: { shot: Shot }) {
+  const { data: beans, isLoading, isError, refetch } = useBeans();
+  const save = useReassignShotBean(shot.id);
+  const [editing, setEditing] = useState(false);
+  const [beanId, setBeanId] = useState("");
+  const [batchId, setBatchId] = useState("");
+  const [saved, setSaved] = useState(false);
+  const uid = useId();
+  const selected = beans?.find(({ bean }) => bean.id === beanId);
+  const batches = selected?.batches ?? [];
+  const start = () => {
+    const current = beans?.find(({ batches }) => batches.some(b => b.id === shot.workflow?.context?.beanBatchId));
+    setBeanId(current?.bean.id ?? "");
+    setBatchId(current ? shot.workflow?.context?.beanBatchId ?? "" : "");
+    setSaved(false);
+    save.reset();
+    setEditing(true);
+  };
+  return <section className="detail__bean" aria-label="Shot bean">
+    {!editing ? <>
+      <button type="button" className="btn" onClick={start}>Change bean</button>
+      {saved && <p role="status">Bean updated in shot history.</p>}
+    </> : <>
+      <h3 className="lbl detail__section">Correct this shot’s bean</h3>
+      <p className="row__sub">Pick the coffee actually used, even if this shot was labelled testing. This changes only this saved shot, not your next brew or bag stock.</p>
+      {isLoading && <p role="status">Loading beans…</p>}
+      {isError && <p role="alert">Could not load beans. <button type="button" className="btn" onClick={() => void refetch()}>Retry</button></p>}
+      {!isLoading && !isError && !beans?.length && <p>Add a bean in Beans first, then return here.</p>}
+      <div className="field">
+        <label htmlFor={`${uid}-bean`}>Bean</label>
+        <select id={`${uid}-bean`} className="field__in" value={beanId} disabled={save.isPending || isLoading || isError} onChange={e => {
+          setBeanId(e.target.value);
+          const next = beans?.find(({ bean }) => bean.id === e.target.value);
+          setBatchId(next?.batches.length === 1 ? next.batches[0].id : "");
+          save.reset();
+        }}>
+          <option value="">Choose a bean…</option>
+          {beans?.map(({ bean }) => <option key={bean.id} value={bean.id}>{bean.roaster} · {bean.name}</option>)}
+        </select>
+      </div>
+      {selected && <div className="field">
+        <label htmlFor={`${uid}-batch`}>Bag / roast</label>
+        <select id={`${uid}-batch`} className="field__in" value={batchId} disabled={save.isPending || selected.batchesUnavailable} onChange={e => setBatchId(e.target.value)}>
+          <option value="">No specific bag</option>
+          {batches.map((batch, index) => <option key={batch.id} value={batch.id}>
+            Bag {index + 1}{batch.roastDate ? ` · roasted ${batch.roastDate.slice(0, 10)}` : " · roast date unknown"}
+          </option>)}
+        </select>
+      </div>}
+      {selected?.batchesUnavailable && <p className="err" role="alert">Bag data is unavailable. Retry loading beans before saving. <button type="button" className="btn" onClick={() => void refetch()}>Retry</button></p>}
+      <div className="actions">
+        <button type="button" className="btn" disabled={!selected || selected.batchesUnavailable || save.isPending} onClick={() => {
+          if (!selected) return;
+          save.mutate({ beanBatchId: batchId || null, coffeeName: selected.bean.name, coffeeRoaster: selected.bean.roaster }, {
+            onSuccess: () => { setEditing(false); setSaved(true); },
+          });
+        }}>{save.isPending ? "Saving bean…" : "Save bean"}</button>
+        <button type="button" className="btn btn--quiet" disabled={save.isPending} onClick={() => { setEditing(false); save.reset(); }}>Cancel</button>
+      </div>
+      {save.isError && <p className="err" role="alert">{save.error.message}</p>}
+    </>}
+  </section>;
 }
