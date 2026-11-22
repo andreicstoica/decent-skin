@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { Workflow } from "../api/useWorkflow";
 import type { TracePoint } from "../api/useShotTrace";
 import { ShotChart } from "./ShotChart";
@@ -7,8 +7,9 @@ import { useGhostShot } from "./useGhostShot";
 
 const EMPTY: TracePoint[] = [];
 
-export function BrewGraph({ workflow, trace, live, elapsed, timestamp }: {
+export function BrewGraph({ workflow, trace, live, elapsed, timestamp, children }: {
   workflow: Workflow | null | undefined; trace: TracePoint[]; live: boolean; elapsed: number; timestamp: string;
+  children?: (ghostToggle: ReactNode) => ReactNode;
 }) {
   const [ghostOn, setGhostOn] = useState(false);
   const ghostStatusId = useId();
@@ -39,31 +40,32 @@ export function BrewGraph({ workflow, trace, live, elapsed, timestamp }: {
   const status = comparing ? unavailable?.detail ?? `Ghost from ${source}, ${date?.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}. Same profile and bean batch.` :
     match ? "Compare the last completed shot for this profile and bean batch. Failed or incomplete shots are excluded." : noMatch;
 
+  const toggle = live ? (
+    <button type="button" className="read__ghost" aria-label="Ghost comparison" aria-pressed={ghostOn}
+      aria-describedby={ghostStatusId} onClick={() => setGhostOn((on) => !on)}
+      disabled={!match && !ghostOn} title={`Ghost comparison: ${status}`}>
+      <span className="chart__ghost-icon">
+        <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M3.5 10a6.5 6.5 0 0 1 13 0v5.7a.8.8 0 0 1-1.3.6l-2-1.7-2 1.7a1.8 1.8 0 0 1-2.4 0l-2-1.7-2 1.7a.8.8 0 0 1-1.3-.6Z" fill={ghostOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M7.65 9.4h.05m4.6 0h.05" stroke={ghostOn ? "hsl(var(--accent-fg))" : "currentColor"} strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </span>
+      <span className="sr-only" id={ghostStatusId} role="status">{status}</span>
+    </button>
+  ) : null;
+
   return (
-    <ShotChart
-      trace={live ? trace : EMPTY}
-      ghost={comparing && !unavailable ? previous?.trace : undefined}
-      profile={profile}
-      live={live}
-      fixedTime
-      showLegend={live}
-      label={live ? "Live espresso trace and pump targets" : "Planned profile targets"}
-      controls={live && (
-        <div className="chart__controls">
-          <button type="button" className="chart__ghost-toggle" aria-label="Ghost comparison" aria-pressed={ghostOn}
-            aria-describedby={ghostStatusId} onClick={() => setGhostOn((on) => !on)}
-            disabled={!match && !ghostOn} title={`Ghost comparison: ${status}`}>
-            <span className="chart__ghost-icon">
-              <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M3.5 10a6.5 6.5 0 0 1 13 0v5.7a.8.8 0 0 1-1.3.6l-2-1.7-2 1.7a1.8 1.8 0 0 1-2.4 0l-2-1.7-2 1.7a.8.8 0 0 1-1.3-.6Z" fill={ghostOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M7.65 9.4h.05m4.6 0h.05" stroke={ghostOn ? "hsl(var(--accent-fg))" : "currentColor"} strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-          </button>
-          {comparing && <span className="chart__ghost-status" aria-hidden="true" title={status}>{unavailable?.short ?? source}</span>}
-          <span className="sr-only" id={ghostStatusId} role="status">{status}</span>
-        </div>
-      )}
-    />
+    <>
+      {children?.(toggle)}
+      <ShotChart
+        trace={live ? trace : EMPTY}
+        ghost={comparing && !unavailable ? previous?.trace : undefined}
+        profile={profile}
+        live={live}
+        fixedTime
+        showLegend={live}
+        label={live ? "Live espresso trace and pump targets" : "Planned profile targets"}
+      />
+    </>
   );
 }
