@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Workflow } from "../api/useWorkflow";
 import type { TracePoint } from "../api/useShotTrace";
 import { ShotChart } from "./ShotChart";
@@ -11,6 +11,7 @@ export function BrewGraph({ workflow, trace, live, elapsed, timestamp }: {
   workflow: Workflow | null | undefined; trace: TracePoint[]; live: boolean; elapsed: number; timestamp: string;
 }) {
   const [ghostOn, setGhostOn] = useState(false);
+  const ghostStatusId = useId();
   // Freeze profile identity + history cutoff for a run. Workflow polling or
   // a just-saved shot must not quietly swap the comparison under a live trace.
   const machineTime = Date.parse(timestamp);
@@ -24,32 +25,43 @@ export function BrewGraph({ workflow, trace, live, elapsed, timestamp }: {
   const current = live ? session.workflow : workflow;
   const profile = graphProfile(current?.profile);
   const match = ghostMatch(current);
-  const ghost = useGhostShot(match, ghostOn, session.before);
+  const comparing = live && ghostOn;
+  const ghost = useGhostShot(match, comparing, session.before);
   const previous = ghost.data?.shot;
-  const unavailable = !match ? "Select a profile and bean batch to compare" :
-    ghost.isError ? "History unavailable" :
-    ghost.isFetching ? "Finding the latest matching shot…" :
-    ghost.data?.incomplete ? "No match in checked history" :
-    !previous ? "No matching completed shot with a usable trace" : null;
-  const status = ghostOn ? unavailable ?? `Same profile + bean batch · ${new Date(previous!.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${new Date(previous!.timestamp).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` :
-    match ? "Compare the last completed shot for this profile + bean batch" : "Select a profile and bean batch to compare";
+  const noMatch = "Select a profile and bean batch to compare.";
+  const unavailable = !match ? { short: "No bean/profile", detail: noMatch } :
+    ghost.isError ? { short: "History unavailable", detail: "History unavailable. Toggle Ghost off and back on to retry." } :
+    ghost.isFetching ? { short: "Finding shot…", detail: "Finding the latest matching shot…" } :
+    ghost.data?.incomplete ? { short: "No match in range", detail: "No match in checked history." } :
+    !previous ? { short: "No match", detail: "No matching completed shot with a usable trace." } : null;
+  const date = previous && new Date(previous.timestamp);
+  const source = date?.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const status = comparing ? unavailable?.detail ?? `Ghost from ${source}, ${date?.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}. Same profile and bean batch.` :
+    match ? "Compare the last completed shot for this profile and bean batch. Failed or incomplete shots are excluded." : noMatch;
 
   return (
     <ShotChart
       trace={live ? trace : EMPTY}
-      ghost={ghostOn && !unavailable ? previous?.trace : undefined}
+      ghost={comparing && !unavailable ? previous?.trace : undefined}
       profile={profile}
       live={live}
       fixedTime
-      showLegend
+      showLegend={live}
       label={live ? "Live espresso trace and pump targets" : "Planned profile targets"}
-      controls={(
+      controls={live && (
         <div className="chart__controls">
-          <button type="button" className={`chart__ghost-toggle ${ghostOn ? "chart__ghost-toggle--on" : ""}`} aria-pressed={ghostOn} onClick={() => setGhostOn(!ghostOn)} disabled={!match && !ghostOn} title="Overlay the most recent matching shot with a usable recording. Failed or incomplete shots are excluded.">
-            Ghost {ghostOn ? "on" : "off"}
+          <button type="button" className="chart__ghost-toggle" aria-label="Ghost comparison" aria-pressed={ghostOn}
+            aria-describedby={ghostStatusId} onClick={() => setGhostOn((on) => !on)}
+            disabled={!match && !ghostOn} title={`Ghost comparison: ${status}`}>
+            <span className="chart__ghost-icon">
+              <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3.5 10a6.5 6.5 0 0 1 13 0v5.7a.8.8 0 0 1-1.3.6l-2-1.7-2 1.7a1.8 1.8 0 0 1-2.4 0l-2-1.7-2 1.7a.8.8 0 0 1-1.3-.6Z" fill={ghostOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M7.65 9.4h.05m4.6 0h.05" stroke={ghostOn ? "hsl(var(--accent-fg))" : "currentColor"} strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </span>
           </button>
-          <span className="chart__ghost-status" role="status">{status}</span>
-          {ghostOn && ghost.isError && <button type="button" className="chart__retry" onClick={() => void ghost.refetch()}>Retry</button>}
+          {comparing && <span className="chart__ghost-status" aria-hidden="true" title={status}>{unavailable?.short ?? source}</span>}
+          <span className="sr-only" id={ghostStatusId} role="status">{status}</span>
         </div>
       )}
     />

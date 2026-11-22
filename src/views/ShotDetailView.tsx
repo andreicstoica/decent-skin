@@ -1,4 +1,5 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import "./ShotDetailView.css";
 import { stopLabel, useAnnotate, useShot, useReassignShotBean, type Annotations } from "../api/useShots";
 import { useBeans } from "../api/useBeans";
 import { ENJOYMENT, TASTE, fromDecaidEnjoyment, toDecaidEnjoyment } from "../api/tasteVocab";
@@ -66,7 +67,7 @@ export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void 
   const { data: shot, isError, isLoading, refetch } = useShot(id);
 
   if (!shot) return <div className="panel"><div className="sheet detail">
-    <button type="button" className="btn detail__back" onClick={onBack}>‹ All shots</button>
+    <AllShotsButton onBack={onBack} />
     <p role={isError ? "alert" : "status"}>{isLoading ? "Loading shot…" : "Could not load this shot."}</p>
     {isError && <button type="button" className="btn" onClick={() => void refetch()}>Try again</button>}
   </div></div>;
@@ -79,6 +80,12 @@ export function ShotDetailView({ id, onBack }: { id: string; onBack: () => void 
       <ShotEditor key={`${shot.id}:${JSON.stringify(shot.annotations ?? {})}`} shot={shot} onBack={onBack} />
     </div>
   );
+}
+
+function AllShotsButton({ onBack }: { onBack: () => void }) {
+  return <button type="button" className="btn btn--quiet detail__back" onClick={onBack}>
+    <span aria-hidden="true">‹</span> All Shots
+  </button>;
 }
 
 function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
@@ -105,9 +112,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
   return (
     <div className="sheet detail">
       <header className="detail__head">
-        <button type="button" className="btn detail__back" onClick={onBack}>
-          <span aria-hidden="true">‹</span> All shots
-        </button>
+        <AllShotsButton onBack={onBack} />
         <h2 className="detail__h">{coffeeName ?? "Unlabelled shot"}</h2>
         <time className="row__sub num" dateTime={shot.timestamp}>
           {new Date(shot.timestamp).toLocaleString(undefined, {
@@ -116,7 +121,6 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
           })}
         </time>
       </header>
-      <ShotBeanEditor shot={shot} />
       <div className="facts">
         <Fact label="Roaster" value={coffeeRoaster ?? "—"} />
         <Fact label="Profile" value={shot.workflow?.profile?.title ?? "—"} />
@@ -216,7 +220,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
           </div>
         </div>
 
-        <div className="actions">
+        <ShotBeanEditor shot={shot} ratingActions={<>
           <button
             type="button"
             className="btn"
@@ -230,7 +234,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
               Discard
             </button>
           )}
-        </div>
+        </>} />
         {annotate.isError && (
           <p className="err" role="alert">Could not save. Check that Decaid is reachable.</p>
         )}
@@ -241,7 +245,7 @@ function ShotEditor({ shot, onBack }: { shot: Shot; onBack: () => void }) {
 
 /** Separate draft from the rating editor, so changing coffee never saves or
  * discards an unfinished rating. No active brew workflow or bag stock changes. */
-function ShotBeanEditor({ shot }: { shot: Shot }) {
+function ShotBeanEditor({ shot, ratingActions }: { shot: Shot; ratingActions: ReactNode }) {
   const { data: beans, isLoading, isError, refetch } = useBeans();
   const save = useReassignShotBean(shot.id);
   const [editing, setEditing] = useState(false);
@@ -251,6 +255,18 @@ function ShotBeanEditor({ shot }: { shot: Shot }) {
   const uid = useId();
   const selected = beans?.find(({ bean }) => bean.id === beanId);
   const batches = selected?.batches ?? [];
+  const editor = useRef<HTMLElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (editing) {
+      editor.current?.focus({ preventScroll: true });
+      editor.current?.scrollIntoView({ block: "nearest" });
+    } else if (returnFocus.current) {
+      trigger.current?.focus();
+      returnFocus.current = false;
+    }
+  }, [editing]);
   const start = () => {
     const current = beans?.find(({ batches }) => batches.some(b => b.id === shot.workflow?.context?.beanBatchId));
     setBeanId(current?.bean.id ?? "");
@@ -259,12 +275,23 @@ function ShotBeanEditor({ shot }: { shot: Shot }) {
     save.reset();
     setEditing(true);
   };
-  return <section className="detail__bean" aria-label="Shot bean">
-    {!editing ? <>
-      <button type="button" className="btn" onClick={start}>Change bean</button>
-      {saved && <p role="status">Bean updated in shot history.</p>}
-    </> : <>
-      <h3 className="lbl detail__section">Correct this shot’s bean</h3>
+  const close = () => {
+    returnFocus.current = true;
+    setEditing(false);
+  };
+  return <>
+    <div className="actions detail__footer">
+      {ratingActions}
+      <button ref={trigger} type="button" className="btn btn--quiet detail__change-bean"
+        aria-expanded={editing} aria-controls={editing ? `${uid}-editor` : undefined}
+        onClick={editing ? () => { close(); save.reset(); } : start}
+        disabled={save.isPending}>
+        Change bean
+      </button>
+    </div>
+    {saved && <p role="status" className="detail__bean-status">Bean updated in shot history.</p>}
+    {editing && <section ref={editor} tabIndex={-1} id={`${uid}-editor`} className="detail__bean" aria-labelledby={`${uid}-heading`}>
+      <h3 className="lbl detail__section" id={`${uid}-heading`}>Correct this shot’s bean</h3>
       <p className="row__sub">Pick the coffee actually used, even if this shot was labelled testing. This changes only this saved shot, not your next brew or bag stock.</p>
       {isLoading && <p role="status">Loading beans…</p>}
       {isError && <p role="alert">Could not load beans. <button type="button" className="btn" onClick={() => void refetch()}>Retry</button></p>}
@@ -295,12 +322,12 @@ function ShotBeanEditor({ shot }: { shot: Shot }) {
         <button type="button" className="btn" disabled={!selected || selected.batchesUnavailable || save.isPending} onClick={() => {
           if (!selected) return;
           save.mutate({ beanBatchId: batchId || null, coffeeName: selected.bean.name, coffeeRoaster: selected.bean.roaster }, {
-            onSuccess: () => { setEditing(false); setSaved(true); },
+            onSuccess: () => { close(); setSaved(true); },
           });
         }}>{save.isPending ? "Saving bean…" : "Save bean"}</button>
-        <button type="button" className="btn btn--quiet" disabled={save.isPending} onClick={() => { setEditing(false); save.reset(); }}>Cancel</button>
+        <button type="button" className="btn btn--quiet" disabled={save.isPending} onClick={() => { close(); save.reset(); }}>Cancel</button>
       </div>
       {save.isError && <p className="err" role="alert">{save.error.message}</p>}
-    </>}
-  </section>;
+    </section>}
+  </>;
 }

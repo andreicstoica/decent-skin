@@ -246,25 +246,11 @@ function InCup({
     });
   const onConnect = () => connect.mutate(undefined, { onError: () => setNote("Scan failed") });
 
-  if (!connected && !pulling) {
-    return (
-      <div className="read__cell read__cell--cup">
-        <div className="read__cup-row read__cup-row--connect">
-          <button type="button" className="tare tare--icon" onClick={onConnect}
-            disabled={connect.isPending} aria-label={connect.isPending ? "Connecting scale" : "Connect scale"}
-            title={connect.isPending ? "Connecting scale" : "Connect scale"}>
-            <ConnectScaleIcon />
-          </button>
-          {(note || connect.isPending) && <span className="row__sub" role="status">{note ?? "Connecting…"}</span>}
-        </div>
-      </div>
-    );
-  }
-
+  const needsScale = !connected && !pulling;
   return (
     <div className="read__cell read__cell--cup">
       <div className="read__l read__l--cup">
-        <span className="lbl">In cup g</span>
+        <span className="lbl">{needsScale ? "Connect scale" : "In cup g"}</span>
         {pulling && target != null && target > 0 && (
           <span className="row__sub num">Target {target} g</span>
         )}
@@ -275,12 +261,18 @@ function InCup({
         )}
       </div>
       <div className="read__cup-row">
-        <span className="read__v num read__v--weight">
-          {weight === null ? "—" : weight.toFixed(1)}
-        </span>
-        {!pulling && <button type="button" className="tare" onClick={onTare} disabled={tare.isPending}>
-          Tare
-        </button>}
+        {needsScale ? (
+          <button type="button" className="tare tare--icon" onClick={onConnect}
+            disabled={connect.isPending} aria-label={connect.isPending ? "Connecting scale" : "Connect scale"}
+            title={connect.isPending ? "Connecting scale" : "Connect scale"}>
+            <ConnectScaleIcon />
+          </button>
+        ) : (
+          <>
+            <span className="read__v num read__v--weight">{weight === null ? "—" : weight.toFixed(1)}</span>
+            {!pulling && <button type="button" className="tare" onClick={onTare} disabled={tare.isPending}>Tare</button>}
+          </>
+        )}
       </div>
     </div>
   );

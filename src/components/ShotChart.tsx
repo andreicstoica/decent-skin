@@ -49,6 +49,7 @@ interface ShotChartProps {
 export const ShotChart = memo(function ShotChart({ trace, label = "Live shot trace", live = false, profile, ghost = EMPTY, fixedTime = false, controls, showLegend = false }: ShotChartProps) {
   const [ref, { width, height }] = useElementSize<HTMLDivElement>();
   const clipId = useId();
+  const descriptionId = useId();
   const plan = useMemo(() => profilePlan(profile), [profile]);
   const targets = useMemo(() => targetTrace(trace, profile), [trace, profile]);
   // Plans are an idle preview, not a prediction superimposed on a live shot.
@@ -86,19 +87,13 @@ export const ShotChart = memo(function ShotChart({ trace, label = "Live shot tra
 
   return (
     <div className="chartwrap">
-      {controls}
-      {showLegend && (
-        <div className="chart__legend" aria-label="Chart legend">
-          <span><i className="chart__sample" />Measured</span>
-          <span><i className="chart__sample chart__sample--target" />{live ? "Pump target" : "Planned target"}</span>
-          <span><i className="chart__sample chart__sample--ghost" />Ghost</span>
-          <span className="chart__legend-note">{live ? "bar · mL/s · g/s" : "Step time limits; exits may shorten"}</span>
-        </div>
-      )}
       <div ref={ref} className="chart__box">
         {plotW > 0 && plotH > 0 && (
-          <svg className="chart__svg" width={width} height={height} role="img" aria-label={label}>
-            <desc>Elapsed time in seconds. Pressure in bar, flow in milliliters per second, weight flow in grams per second. Solid lines are measured. Dashed colored lines are pump targets. Faint dotted lines are a previous matching completed shot. Planned smooth transitions show only goal markers, not predicted ramps.</desc>
+          <svg className="chart__svg" width={width} height={height} role="img" aria-label={label} aria-describedby={descriptionId}>
+            <desc id={descriptionId}>Elapsed time in seconds. Pressure in bar, flow in milliliters per second, weight flow in grams per second. {live ?
+              "Solid lines are measured. Dashed colored lines are pump targets. Faint dotted lines, when enabled, are the previous matching completed shot." :
+              planned.length ? "Dashed lines show planned pressure or flow; exits can shorten steps. Planned smooth transitions show only goal markers, not predicted ramps." :
+              "Solid lines are measured. Dashed colored lines are pump targets."}</desc>
             <defs><clipPath id={clipId}><rect x={PAD.left} y={PAD.top - 3} width={plotW + 1} height={plotH + 6} /></clipPath></defs>
             {Array.from({ length: Math.round((max - min) / yStep) + 1 }, (_, i) => min + i * yStep).map((v) => (
               <g key={v}>
@@ -134,6 +129,14 @@ export const ShotChart = memo(function ShotChart({ trace, label = "Live shot tra
             </g>
           </svg>
         )}
+        {(controls || showLegend) && <div className="chart__overlay">
+          {controls}
+          {showLegend && <div className="chart__legend" aria-hidden="true" title="Solid: measured · Dashed: pump target · Dotted: previous matching shot">
+            <span><i className="chart__sample" />Actual</span>
+            <span><i className="chart__sample chart__sample--target" />Target</span>
+            {ghost.length > 0 && <span><i className="chart__sample chart__sample--ghost" />Ghost</span>}
+          </div>}
+        </div>}
       </div>
     </div>
   );

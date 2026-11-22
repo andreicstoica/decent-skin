@@ -1,0 +1,12 @@
+@media (hover: hover) and (pointer: fine) {
+  .detail .btn--quiet.detail__back:hover:not(:disabled) {
+    border-color: hsl(var(--rule-strong));
+    background: var(--veil);
+    color: hsl(var(--fg));
+  }
+}
+
+.detail__footer { flex-wrap: wrap; }
+.detail__change-bean { margin-inline-start: auto; }
+.detail .detail__bean { margin: var(--band) 0 0; }
+.detail__bean-status { color: hsl(var(--muted)); font-size: 12px; text-align: end; }
