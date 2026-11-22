@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { restUrl } from "../api/gateway";
 import { useSaveSettings, useSettings } from "../api/useSettings";
 import {
@@ -101,7 +101,7 @@ function Num({
   );
 }
 
-function Toggle({ labelId, on, onChange }: { labelId: string; on: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ labelId, on, onChange, disabled }: { labelId: string; on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="seg" role="group" aria-labelledby={labelId}>
       {([false, true] as const).map((v) => (
@@ -110,6 +110,7 @@ function Toggle({ labelId, on, onChange }: { labelId: string; on: boolean; onCha
           key={String(v)}
           className={`seg__b ${on === v ? "seg__b--on" : ""}`}
           aria-pressed={on === v}
+          disabled={disabled}
           onClick={() => on !== v && onChange(v)}
         >
           {v ? "On" : "Off"}
@@ -144,6 +145,74 @@ function Choice<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+interface SkinUpdateResult {
+  item: string;
+  status: "updated" | "alreadyCurrent" | "failed";
+  error?: string;
+}
+
+function CubbyUpdates() {
+  const client = useQueryClient();
+  const { data: app } = useDecaidSettings();
+  const save = useSaveDecaidSettings();
+  const check = useMutation({
+    mutationFn: async (): Promise<SkinUpdateResult[] | null> => {
+      const response = await fetch(restUrl("/webui/skins/update"), { method: "POST" });
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Decaid blocked this check. Use Skins → Check for updates in the Decaid launcher.");
+      }
+      if (!response.ok) throw new Error("Could not check for updates. Try again from the Decaid launcher.");
+      const body = (await response.json()) as { results?: SkinUpdateResult[] };
+      return body.results ?? null;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ["decaid-skins"] }),
+  });
+  const updated = check.data?.filter(({ status }) => status === "updated").length ?? 0;
+  const failures = check.data?.filter(({ status }) => status === "failed") ?? [];
+  const summary = updated > 0
+    ? `${updated} ${updated === 1 ? "skin updated" : "skins updated"}.`
+    : check.data?.length && !failures.length
+      ? "No new skin updates."
+      : !failures.length ? "Check complete. Only skins installed from an update source can be checked." : null;
+
+  return (
+    <Group title="Cubby">
+      {typeof app?.automaticUpdateCheck === "boolean" && (
+        <Row
+          label="Automatic updates"
+          control={({ labelId }) => (
+            <Toggle labelId={labelId} on={app.automaticUpdateCheck} disabled={save.isPending}
+              onChange={(automaticUpdateCheck) => save.mutate({ automaticUpdateCheck })} />
+          )}
+        />
+      )}
+      <div className="field">
+        <div className="field__label">
+          <span className="row__title">Skin updates</span>
+          <span className="row__sub">Decaid checks and installs updates for all skins with an update source.</span>
+        </div>
+        <button type="button" className="btn btn--quiet btn--compact" disabled={check.isPending} onClick={() => check.mutate()}>
+          {check.isPending ? "Checking…" : "Check for updates"}
+        </button>
+      </div>
+      {save.isError && <p className="err" role="alert">Could not change automatic updates. Try in the Decaid launcher.</p>}
+      {check.isError && (
+        <p className="err" role="alert">
+          {check.error instanceof TypeError
+            ? "Could not reach the update service from Cubby. Try in the Decaid launcher."
+            : check.error.message}
+        </p>
+      )}
+      {check.isSuccess && (
+        <div role="status">
+          {summary && <p className="row__sub">{summary}</p>}
+          {failures.map(({ item, error }) => <p className="err" key={item}>{item}: {error ?? "Update failed."}</p>)}
+        </div>
+      )}
+    </Group>
   );
 }
 
@@ -480,6 +549,7 @@ export function SettingsView({
           )}
 
           <WakeSchedules />
+          <CubbyUpdates />
           <SkinSwitcher />
         </div>
       </div>
